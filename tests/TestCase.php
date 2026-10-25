@@ -31,6 +31,7 @@ class TestCase extends Orchestra
     {
         config()->set('database.default', 'testing');
         config()->set('auth.providers.users.model', User::class);
+        config()->set('laravel_ticket.mail.schedule', false);
 
         $migrations = [
             include __DIR__.'/../database/migrations/create_tickets_table.php.stub',
@@ -46,6 +47,7 @@ class TestCase extends Orchestra
             // Tests Migration
             include __DIR__.'/Database/Migrations/create_users_table.php',
             include __DIR__.'/../database/migrations/install_enterprise_itsm.php.stub',
+            include __DIR__.'/../database/migrations/add_support_mailboxes.php.stub',
         ];
 
         collect($migrations)->each(fn ($migration) => $migration->up());

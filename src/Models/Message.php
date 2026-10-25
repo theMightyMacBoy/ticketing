@@ -15,12 +15,19 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property string $message
  * @property string $visibility
+ * @property string|null $sender_email
+ * @property string|null $sender_name
  * @property Carbon|null $created_at
  * @property-read Ticket|null $ticket
  */
 class Message extends Model
 {
     use HasFactory;
+
+    /**
+     * Inbound mail sets this so the customer's own message is not relayed back out.
+     */
+    public bool $suppressOutboundMail = false;
 
     /**
      * @var list<string>
@@ -30,6 +37,8 @@ class Message extends Model
         'ticket_id',
         'message',
         'visibility',
+        'sender_email',
+        'sender_name',
     ];
 
     /**

@@ -4,7 +4,9 @@ namespace Coderflex\LaravelTicket\Observers;
 
 use Coderflex\LaravelTicket\Audit\ActivityLogger;
 use Coderflex\LaravelTicket\Enums\MessageVisibility;
+use Coderflex\LaravelTicket\Mail\TicketMailer;
 use Coderflex\LaravelTicket\Models\Message;
+use Coderflex\LaravelTicket\Models\Ticket;
 use Coderflex\LaravelTicket\Sla\SlaClock;
 
 class MessageObserver
@@ -12,6 +14,7 @@ class MessageObserver
     public function __construct(
         private SlaClock $sla,
         private ActivityLogger $activity,
+        private TicketMailer $mailer,
     ) {}
 
     public function creating(Message $message): void
@@ -25,7 +28,7 @@ class MessageObserver
     {
         $ticket = $message->ticket;
 
-        if (! $ticket) {
+        if (! $ticket instanceof Ticket) {
             return;
         }
 
@@ -45,6 +48,14 @@ class MessageObserver
             && (int) $message->user_id !== (int) $ticket->user_id
         ) {
             $this->sla->markFirstResponse($ticket, $message->created_at ?? now());
+        }
+
+        if (
+            $visibility === MessageVisibility::PUBLIC->value
+            && ! $message->suppressOutboundMail
+            && (int) $message->user_id !== (int) $ticket->user_id
+        ) {
+            $this->mailer->deliver($ticket, $message);
         }
     }
 }

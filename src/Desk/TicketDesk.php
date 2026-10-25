@@ -39,6 +39,8 @@ class TicketDesk
             'priority' => $attributes['priority'] ?? $this->matrix->calculate($impact, $urgency),
             'channel' => $attributes['channel'] ?? Channel::PORTAL->value,
             'is_major' => (bool) ($attributes['is_major'] ?? false),
+            'mailbox_id' => $attributes['mailbox_id'] ?? null,
+            'requester_email' => $attributes['requester_email'] ?? null,
             'custom_attributes' => $attributes['custom_attributes'] ?? null,
         ]);
 

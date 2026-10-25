@@ -6,7 +6,9 @@ use Coderflex\LaravelTicket\Models\Attachment;
 use Coderflex\LaravelTicket\Models\Category;
 use Coderflex\LaravelTicket\Models\ConfigurationItem;
 use Coderflex\LaravelTicket\Models\CustomFieldDefinition;
+use Coderflex\LaravelTicket\Models\EmailMessage;
 use Coderflex\LaravelTicket\Models\Label;
+use Coderflex\LaravelTicket\Models\Mailbox;
 use Coderflex\LaravelTicket\Models\Message;
 use Coderflex\LaravelTicket\Models\Organization;
 use Coderflex\LaravelTicket\Models\ResolutionCode;
@@ -72,6 +74,8 @@ return [
         'configuration_item_ticket' => 'configuration_item_ticket',
         'attachments' => 'attachments',
         'custom_field_definitions' => 'custom_field_definitions',
+        'mailboxes' => 'mailboxes',
+        'email_messages' => 'email_messages',
     ],
 
     'models' => [
@@ -92,6 +96,8 @@ return [
         'configuration_item' => ConfigurationItem::class,
         'attachment' => Attachment::class,
         'custom_field_definition' => CustomFieldDefinition::class,
+        'mailbox' => Mailbox::class,
+        'email_message' => EmailMessage::class,
     ],
 
     /*
@@ -165,5 +171,37 @@ return [
     'attachments' => [
         'disk' => 'public',
         'path' => 'tickets',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Support mailboxes
+    |--------------------------------------------------------------------------
+    |
+    | Inbound mail is read from Exchange Online with application permissions
+    | (client credentials). Mail.Read is required, plus an application access
+    | policy when the tenant limits which mailboxes the app can open.
+    | Outbound replies use the application's SMTP mailer. The From address
+    | is the shared mailbox, including when several groups share it.
+    | New mail opens on that mailbox's primary group.
+    |
+    | Unknown senders need system_user_id or a resolve_sender callback
+    | that returns a user id. The callback receives the inbound email.
+    |
+    */
+    'mail' => [
+        'schedule' => true,
+        'mailer' => null,
+        'fetch_limit' => 25,
+        'system_user_id' => null,
+        'resolve_sender' => null,
+        'token_url' => 'https://login.microsoftonline.com/%s/oauth2/v2.0/token',
+        'graph_url' => 'https://graph.microsoft.com/v1.0',
+        'graph' => [
+            'tenant_id' => env('TICKET_GRAPH_TENANT_ID'),
+            'client_id' => env('TICKET_GRAPH_CLIENT_ID'),
+            'client_secret' => env('TICKET_GRAPH_CLIENT_SECRET'),
+            'scope' => 'https://graph.microsoft.com/.default',
+        ],
     ],
 ];

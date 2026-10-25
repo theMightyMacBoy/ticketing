@@ -46,6 +46,8 @@ use Illuminate\Support\Carbon;
  * @property bool $response_breached
  * @property bool $resolution_breached
  * @property array<string, mixed>|null $custom_attributes
+ * @property int|null $mailbox_id
+ * @property string|null $requester_email
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -88,6 +90,8 @@ class Ticket extends Model
         'assignment_group_id',
         'service_id',
         'resolution_code_id',
+        'mailbox_id',
+        'requester_email',
         'custom_attributes',
     ];
 
@@ -130,6 +134,11 @@ class Ticket extends Model
     public function assignmentGroup(): BelongsTo
     {
         return $this->belongsTo(config('laravel_ticket.models.assignment_group'));
+    }
+
+    public function mailbox(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.mailbox'));
     }
 
     public function service(): BelongsTo

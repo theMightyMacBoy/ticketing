@@ -359,6 +359,35 @@ Every status and assignment change is written to `ticket_activities`. Categories
 
 If you already published the original migrations, publish and run `install_enterprise_itsm` as well. It widens `tickets.message` to text and adds the service-desk tables.
 
+## Shared mailboxes
+
+A mailbox is one Exchange Online address. Several assignment groups can connect to it. Exactly one of those groups is primary. Mail that does not match an existing ticket opens on the primary group. A reply stays on the ticket it belongs to, even after that ticket moves to another group that shares the address.
+
+Inbound mail uses Microsoft Graph application permissions (client credentials), not a user's password. The app registration needs `Mail.Read`. If the tenant limits mailbox access, add an application access policy for each address. Credentials can live on the mailbox or in `laravel_ticket.mail.graph`, which reads `TICKET_GRAPH_TENANT_ID`, `TICKET_GRAPH_CLIENT_ID`, and `TICKET_GRAPH_CLIENT_SECRET`.
+
+Outbound mail does not go through Exchange Online. Replies use the Laravel mailer (`MAIL_MAILER=smtp` for a relay). The From address is the shared mailbox, for every group connected to it. Internal notes are not sent. A message from the requester is not sent back to them.
+
+```php
+use Coderflex\LaravelTicket\Models\Mailbox;
+
+$mailbox = Mailbox::query()->create([
+    'name' => 'Help Desk',
+    'address' => 'help@contoso.com',
+    'tenant_id' => config('laravel_ticket.mail.graph.tenant_id'),
+    'client_id' => config('laravel_ticket.mail.graph.client_id'),
+    'client_secret' => config('laravel_ticket.mail.graph.client_secret'),
+]);
+
+$network->connectMailbox($mailbox, true); // primary: new mail opens here
+$desktop->connectMailbox($mailbox);       // replies still land on the right ticket
+```
+
+`tickets:fetch-mail` runs every minute when `laravel_ticket.mail.schedule` is true. Unknown senders need `laravel_ticket.mail.system_user_id`, or a `resolve_sender` callback that returns a user id. The customer address is stored on `requester_email` and `sender_email` either way.
+
+Threading matches `In-Reply-To` and `References` against the mailbox ledger, then a ticket number in the subject such as `[INC-000001]`. The same Graph message is stored once.
+
+Publish and run `add_support_mailboxes` after the enterprise migration.
+
 ## Testing
 
 ```bash

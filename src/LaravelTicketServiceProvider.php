@@ -3,9 +3,13 @@
 namespace Coderflex\LaravelTicket;
 
 use Coderflex\LaravelTicket\Commands\EvaluateSlasCommand;
+use Coderflex\LaravelTicket\Commands\FetchMailCommand;
+use Coderflex\LaravelTicket\Mail\GraphMailboxReader;
+use Coderflex\LaravelTicket\Mail\MailboxReader;
 use Coderflex\LaravelTicket\Observers\MessageObserver;
 use Coderflex\LaravelTicket\Observers\TicketObserver;
 use Coderflex\LaravelTicket\Policies\TicketPolicy;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -22,7 +26,11 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-ticket')
             ->hasConfigFile('laravel_ticket')
-            ->hasCommand(EvaluateSlasCommand::class)
+            ->hasViews('laravel-ticket')
+            ->hasCommands(
+                EvaluateSlasCommand::class,
+                FetchMailCommand::class,
+            )
             ->hasMigrations(
                 'create_tickets_table',
                 'create_messages_table',
@@ -32,7 +40,13 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
                 'create_label_ticket_table',
                 'add_assigned_to_column_into_tickets_table',
                 'install_enterprise_itsm',
+                'add_support_mailboxes',
             );
+    }
+
+    public function packageRegistered(): void
+    {
+        $this->app->bind(MailboxReader::class, GraphMailboxReader::class);
     }
 
     public function packageBooted(): void
@@ -44,5 +58,16 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
 
         $ticket::observe(TicketObserver::class);
         $message::observe(MessageObserver::class);
+
+        $this->app->booted(function () {
+            if (! config('laravel_ticket.mail.schedule')) {
+                return;
+            }
+
+            $this->app->make(Schedule::class)
+                ->command('tickets:fetch-mail')
+                ->everyMinute()
+                ->withoutOverlapping();
+        });
     }
 }
