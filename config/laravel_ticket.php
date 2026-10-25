@@ -179,8 +179,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Inbound mail is read from Exchange Online with application permissions
-    | (client credentials). Mail.Read is required, plus an application access
-    | policy when the tenant limits which mailboxes the app can open.
+    | (client credentials). Mail.Read is required. Mail.ReadWrite is required
+    | only when a mailbox sets delete_read_after_days. Add an application
+    | access policy when the tenant limits which mailboxes the app can open.
     | Outbound replies use the application's SMTP mailer. The From address
     | is the shared mailbox, including when several groups share it.
     | New mail opens on that mailbox's primary group.
@@ -193,6 +194,7 @@ return [
         'schedule' => true,
         'mailer' => null,
         'fetch_limit' => 25,
+        'purge_limit' => 2000,
         'system_user_id' => null,
         'resolve_sender' => null,
         'token_url' => 'https://login.microsoftonline.com/%s/oauth2/v2.0/token',

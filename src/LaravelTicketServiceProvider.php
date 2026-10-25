@@ -4,6 +4,7 @@ namespace Coderflex\LaravelTicket;
 
 use Coderflex\LaravelTicket\Commands\EvaluateSlasCommand;
 use Coderflex\LaravelTicket\Commands\FetchMailCommand;
+use Coderflex\LaravelTicket\Commands\PurgeMailCommand;
 use Coderflex\LaravelTicket\Mail\GraphMailboxReader;
 use Coderflex\LaravelTicket\Mail\MailboxReader;
 use Coderflex\LaravelTicket\Observers\MessageObserver;
@@ -30,6 +31,7 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
             ->hasCommands(
                 EvaluateSlasCommand::class,
                 FetchMailCommand::class,
+                PurgeMailCommand::class,
             )
             ->hasMigrations(
                 'create_tickets_table',
@@ -64,9 +66,15 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
                 return;
             }
 
-            $this->app->make(Schedule::class)
-                ->command('tickets:fetch-mail')
+            $schedule = $this->app->make(Schedule::class);
+
+            $schedule->command('tickets:fetch-mail')
                 ->everyMinute()
+                ->withoutOverlapping();
+
+            $schedule->command('tickets:purge-mail')
+                ->dailyAt('00:00')
+                ->timezone('UTC')
                 ->withoutOverlapping();
         });
     }

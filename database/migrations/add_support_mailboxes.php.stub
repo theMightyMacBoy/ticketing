@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('client_id')->nullable();
             $table->text('client_secret')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->unsignedInteger('delete_read_after_days')->nullable();
             $table->timestamp('last_synced_at')->nullable();
             $table->timestamps();
         });

@@ -363,11 +363,12 @@ If you already published the original migrations, publish and run `install_enter
 
 A mailbox is one Exchange Online address. Several assignment groups can connect to it. Exactly one of those groups is primary. Mail that does not match an existing ticket opens on the primary group. A reply stays on the ticket it belongs to, even after that ticket moves to another group that shares the address.
 
-Inbound mail uses Microsoft Graph application permissions (client credentials), not a user's password. The app registration needs `Mail.Read`. If the tenant limits mailbox access, add an application access policy for each address. Credentials can live on the mailbox or in `laravel_ticket.mail.graph`, which reads `TICKET_GRAPH_TENANT_ID`, `TICKET_GRAPH_CLIENT_ID`, and `TICKET_GRAPH_CLIENT_SECRET`.
+Inbound mail uses Microsoft Graph application permissions (client credentials), not a user's password. The app registration needs `Mail.Read`. A mailbox that deletes old mail also needs `Mail.ReadWrite`. If the tenant limits mailbox access, add an application access policy for each address. Credentials can live on the mailbox or in `laravel_ticket.mail.graph`, which reads `TICKET_GRAPH_TENANT_ID`, `TICKET_GRAPH_CLIENT_ID`, and `TICKET_GRAPH_CLIENT_SECRET`.
 
 Outbound mail does not go through Exchange Online. Replies use the Laravel mailer (`MAIL_MAILER=smtp` for a relay). The From address is the shared mailbox, for every group connected to it. Internal notes are not sent. A message from the requester is not sent back to them.
 
 ```php
+use Coderflex\LaravelTicket\Models\AssignmentGroup;
 use Coderflex\LaravelTicket\Models\Mailbox;
 
 $mailbox = Mailbox::query()->create([
@@ -376,7 +377,11 @@ $mailbox = Mailbox::query()->create([
     'tenant_id' => config('laravel_ticket.mail.graph.tenant_id'),
     'client_id' => config('laravel_ticket.mail.graph.client_id'),
     'client_secret' => config('laravel_ticket.mail.graph.client_secret'),
+    'delete_read_after_days' => 30, // omit to keep read mail in the inbox
 ]);
+
+$network = AssignmentGroup::query()->create(['name' => 'Network', 'slug' => 'network']);
+$desktop = AssignmentGroup::query()->create(['name' => 'Desktop', 'slug' => 'desktop']);
 
 $network->connectMailbox($mailbox, true); // primary: new mail opens here
 $desktop->connectMailbox($mailbox);       // replies still land on the right ticket
@@ -385,6 +390,8 @@ $desktop->connectMailbox($mailbox);       // replies still land on the right tic
 `tickets:fetch-mail` runs every minute when `laravel_ticket.mail.schedule` is true. Unknown senders need `laravel_ticket.mail.system_user_id`, or a `resolve_sender` callback that returns a user id. The customer address is stored on `requester_email` and `sender_email` either way.
 
 Threading matches `In-Reply-To` and `References` against the mailbox ledger, then a ticket number in the subject such as `[INC-000001]`. The same Graph message is stored once.
+
+`tickets:purge-mail` runs at 00:00 UTC when scheduling is on. For each mailbox with `delete_read_after_days` set, it deletes read inbox messages received before that many UTC midnights ago. A 7-day rule running on October 25 deletes read mail received before October 18 00:00 UTC. Unread mail stays. Mailboxes with no rule are left alone. One run deletes up to `laravel_ticket.mail.purge_limit` messages per mailbox (2000 by default) and continues the next night.
 
 Publish and run `add_support_mailboxes` after the enterprise migration.
 

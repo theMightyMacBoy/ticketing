@@ -2,10 +2,12 @@
 
 namespace Coderflex\LaravelTicket\Mail;
 
+use Carbon\CarbonInterface;
 use Coderflex\LaravelTicket\Exceptions\MailboxMisconfigured;
 use Coderflex\LaravelTicket\Models\Mailbox;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -54,6 +56,48 @@ class GraphMailboxReader implements MailboxReader
         $response = $this->graph($mailbox)->patch($url, ['isRead' => true]);
 
         $this->guard($response, "Graph could not mark a message read for [{$mailbox->address}]");
+    }
+
+    public function deleteReadBefore(Mailbox $mailbox, CarbonInterface $before): int
+    {
+        $cutoff = Carbon::instance($before)->utc();
+        $deleted = 0;
+        $limit = max(1, (int) config('laravel_ticket.mail.purge_limit', 2000));
+        $url = $this->inboxUrl($mailbox);
+        $query = [
+            '$top' => 50,
+            '$select' => 'id,receivedDateTime,isRead',
+            '$filter' => 'isRead eq true and receivedDateTime lt '.$cutoff->format('Y-m-d\TH:i:s\Z'),
+        ];
+
+        while (is_string($url) && $url !== '' && $deleted < $limit) {
+            $request = $this->graph($mailbox);
+            $response = $query === [] ? $request->get($url) : $request->get($url, $query);
+
+            $this->guard($response, "Graph could not list read mail for [{$mailbox->address}]");
+
+            $items = $response->json('value');
+
+            if (! is_array($items)) {
+                break;
+            }
+
+            foreach ($items as $item) {
+                if ($deleted >= $limit || ! $this->shouldDelete($item, $cutoff)) {
+                    continue;
+                }
+
+                $this->deleteMessage($mailbox, (string) $item['id']);
+                $deleted++;
+            }
+
+            $body = $response->json();
+            $next = is_array($body) ? ($body['@odata.nextLink'] ?? null) : null;
+            $url = is_string($next) && $next !== '' ? $next : null;
+            $query = [];
+        }
+
+        return $deleted;
     }
 
     /**
@@ -154,6 +198,43 @@ class GraphMailboxReader implements MailboxReader
         Cache::put($mailbox->tokenCacheKey(), $token, $ttl);
 
         return $token;
+    }
+
+    private function shouldDelete(mixed $item, Carbon $cutoff): bool
+    {
+        if (! is_array($item) || ! is_string($item['id'] ?? null) || $item['id'] === '') {
+            return false;
+        }
+
+        if (($item['isRead'] ?? false) !== true) {
+            return false;
+        }
+
+        $received = $item['receivedDateTime'] ?? null;
+
+        if (! is_string($received) || $received === '') {
+            return false;
+        }
+
+        return Carbon::parse($received)->utc()->lt($cutoff);
+    }
+
+    private function deleteMessage(Mailbox $mailbox, string $graphId): void
+    {
+        $url = $this->graphBase().'/users/'.rawurlencode($mailbox->address).'/messages/'.rawurlencode($graphId);
+        $response = $this->graph($mailbox)->delete($url);
+
+        if ($response->status() === 404) {
+            return;
+        }
+
+        if ($response->status() === 403) {
+            throw new MailboxMisconfigured(
+                "Graph refused to delete mail for [{$mailbox->address}]. The app needs Mail.ReadWrite ({$this->errorCode($response)})."
+            );
+        }
+
+        $this->guard($response, "Graph could not delete a message for [{$mailbox->address}]");
     }
 
     private function guard(Response $response, string $action): void

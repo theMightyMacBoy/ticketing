@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Cache;
  * @property string|null $client_id
  * @property string|null $client_secret
  * @property bool $is_active
+ * @property int|null $delete_read_after_days
  * @property Carbon|null $last_synced_at
  */
 class Mailbox extends Model
@@ -29,6 +30,7 @@ class Mailbox extends Model
         'client_id',
         'client_secret',
         'is_active',
+        'delete_read_after_days',
     ];
 
     protected $hidden = [
@@ -38,6 +40,7 @@ class Mailbox extends Model
     protected $casts = [
         'client_secret' => 'encrypted',
         'is_active' => 'boolean',
+        'delete_read_after_days' => 'integer',
         'last_synced_at' => 'datetime',
     ];
 
