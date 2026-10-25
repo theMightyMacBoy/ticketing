@@ -3,6 +3,7 @@
 namespace Coderflex\LaravelTicket\Tests;
 
 use Coderflex\LaravelTicket\LaravelTicketServiceProvider;
+use Coderflex\LaravelTicket\Tests\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -29,6 +30,7 @@ class TestCase extends Orchestra
     public function getEnvironmentSetUp($app)
     {
         config()->set('database.default', 'testing');
+        config()->set('auth.providers.users.model', User::class);
 
         $migrations = [
             include __DIR__.'/../database/migrations/create_tickets_table.php.stub',
@@ -43,6 +45,7 @@ class TestCase extends Orchestra
 
             // Tests Migration
             include __DIR__.'/Database/Migrations/create_users_table.php',
+            include __DIR__.'/../database/migrations/install_enterprise_itsm.php.stub',
         ];
 
         collect($migrations)->each(fn ($migration) => $migration->up());

@@ -2,6 +2,12 @@
 
 All notable changes to `laravel-ticket` will be documented in this file.
 
+## Unreleased
+
+- Add an IT service-desk domain: ticket types and public numbers, impact × urgency priority, status workflow, SLA clocks with a business calendar, assignment groups, organizations, approvals, internal notes, links, work logs, attachments, a service catalog, custom fields, audit history, queue visibility, and service-desk reporting.
+- `assignTo()` stores a user id. `isClosed()` is true only when the status is `closed`. `markAsResolved()` moves the ticket to `resolved`.
+- New tickets opened through Eloquent default to status `new`. `tickets.message` is text. Ticket and message models use `$fillable`.
+
 ## v1.1.0 - 2022-10-22
 
 ### What's Changed

@@ -2,9 +2,11 @@
 
 namespace Coderflex\LaravelTicket\Scopes;
 
+use Coderflex\LaravelTicket\Contracts\CanManageTickets;
 use Coderflex\LaravelTicket\Enums\Priority;
 use Coderflex\LaravelTicket\Enums\Status;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 trait TicketScope
 {
@@ -102,5 +104,81 @@ trait TicketScope
     public function scopeUnArchived(Builder $builder): Builder
     {
         return $builder->whereNot('status', Status::ARCHIVED->value);
+    }
+
+    /**
+     * Tickets that still need an agent.
+     */
+    public function scopeActive(Builder $builder): Builder
+    {
+        return $builder->whereIn('status', Status::active());
+    }
+
+    public function scopeOfType(Builder $builder, string $type): Builder
+    {
+        return $builder->where('type', $type);
+    }
+
+    public function scopePending(Builder $builder): Builder
+    {
+        return $builder->where('status', Status::PENDING->value);
+    }
+
+    public function scopeBreached(Builder $builder): Builder
+    {
+        return $builder->where(function (Builder $query) {
+            $query->where('response_breached', true)
+                ->orWhere('resolution_breached', true);
+        });
+    }
+
+    public function scopeWithMediumPriority(Builder $builder): Builder
+    {
+        return $builder->where('priority', Priority::MEDIUM->value);
+    }
+
+    public function scopeWithCriticalPriority(Builder $builder): Builder
+    {
+        return $builder->where('priority', Priority::CRITICAL->value);
+    }
+
+    public function scopeAssignedTo(Builder $builder, Model|int $user): Builder
+    {
+        $id = $user instanceof Model ? $user->getKey() : $user;
+
+        return $builder->where('assigned_to', $id);
+    }
+
+    public function scopeInGroup(Builder $builder, Model|int $group): Builder
+    {
+        $id = $group instanceof Model ? $group->getKey() : $group;
+
+        return $builder->where('assignment_group_id', $id);
+    }
+
+    /**
+     * Tickets the user is allowed to see: own, affected, assigned, watched, or queued.
+     */
+    public function scopeVisibleTo(Builder $builder, Model $user): Builder
+    {
+        if ($user instanceof CanManageTickets && $user->canManageTickets()) {
+            return $builder;
+        }
+
+        $callback = config('laravel_ticket.agents.callback');
+
+        if (is_callable($callback) && $callback($user)) {
+            return $builder;
+        }
+
+        $id = $user->getKey();
+
+        return $builder->where(function (Builder $query) use ($id) {
+            $query->where($query->qualifyColumn('user_id'), $id)
+                ->orWhere($query->qualifyColumn('affected_user_id'), $id)
+                ->orWhere($query->qualifyColumn('assigned_to'), $id)
+                ->orWhereHas('watchers', fn (Builder $watchers) => $watchers->whereKey($id))
+                ->orWhereHas('assignmentGroup.members', fn (Builder $members) => $members->whereKey($id));
+        });
     }
 }

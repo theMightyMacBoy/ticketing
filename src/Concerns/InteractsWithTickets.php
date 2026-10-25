@@ -65,7 +65,7 @@ trait InteractsWithTickets
      */
     public function isClosed(): bool
     {
-        return ! $this->isOpen();
+        return $this->status === Status::CLOSED->value;
     }
 
     /**
@@ -106,6 +106,7 @@ trait InteractsWithTickets
     public function markAsResolved(): self
     {
         $this->update([
+            'status' => Status::RESOLVED->value,
             'is_resolved' => true,
         ]);
 
@@ -186,12 +187,12 @@ trait InteractsWithTickets
     }
 
     /**
-     * Add new message on an existing ticket as a custom user
+     * Assign the ticket to a user id.
      */
-    public function assignTo(Model|int $user): self
+    public function assignTo(Model|int|null $user): self
     {
         $this->update([
-            'assigned_to' => $user,
+            'assigned_to' => $user instanceof Model ? $user->getKey() : $user,
         ]);
 
         return $this;
@@ -223,6 +224,26 @@ trait InteractsWithTickets
     public function makePriorityAsHigh(): self
     {
         $this->update(['priority' => Priority::HIGH->value]);
+
+        return $this;
+    }
+
+    /**
+     * make ticket priority as medium
+     */
+    public function makePriorityAsMedium(): self
+    {
+        $this->update(['priority' => Priority::MEDIUM->value]);
+
+        return $this;
+    }
+
+    /**
+     * make ticket priority as critical
+     */
+    public function makePriorityAsCritical(): self
+    {
+        $this->update(['priority' => Priority::CRITICAL->value]);
 
         return $this;
     }

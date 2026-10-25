@@ -20,7 +20,7 @@ class TicketFactory extends Factory
             'priority' => $this->faker->randomElement(['low', 'normal', 'high']),
             'status' => $this->faker->randomElement(['open', 'closed']),
             'is_resolved' => $this->faker->randomElement([true, false]),
-            'is_locked' => $this->faker->randomElement([true, false]),
+            'is_locked' => false,
         ];
     }
 }

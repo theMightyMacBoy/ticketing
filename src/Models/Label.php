@@ -15,7 +15,7 @@ class Label extends Model
     /**
      * The attributes that aren't mass assignable.
      *
-     * @var array<string>|bool
+     * @var array<string>
      */
     protected $guarded = [];
 
@@ -24,7 +24,14 @@ class Label extends Model
      */
     public function tickets(): BelongsToMany
     {
-        return $this->belongsToMany(config('laravel_ticket.models.ticket'));
+        $table = config('laravel_ticket.table_names.label_ticket');
+
+        return $this->belongsToMany(
+            config('laravel_ticket.models.ticket'),
+            $table['table'],
+            $table['columns']['label_foreign_id'],
+            $table['columns']['ticket_foreign_id'],
+        );
     }
 
     /**

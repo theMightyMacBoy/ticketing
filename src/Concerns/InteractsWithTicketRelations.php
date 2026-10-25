@@ -2,6 +2,10 @@
 
 namespace Coderflex\LaravelTicket\Concerns;
 
+use Coderflex\LaravelTicket\Contracts\CanManageTickets;
+use Coderflex\LaravelTicket\Enums\MessageVisibility;
+use Coderflex\LaravelTicket\Enums\Status;
+use Coderflex\LaravelTicket\Exceptions\ReplyNotAllowed;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
@@ -56,7 +60,7 @@ trait InteractsWithTicketRelations
     }
 
     /**
-     * Add new message on an existing ticket
+     * Add a public reply to an existing ticket.
      */
     public function message(string $message): Model
     {
@@ -64,13 +68,59 @@ trait InteractsWithTicketRelations
     }
 
     /**
-     * Add new message on an existing ticket as a custom user
+     * Add a public reply as a specific user.
      */
     public function messageAsUser(?Model $user, string $message): Model
     {
+        $this->guardPublicReply($user);
+
+        return $this->addMessage($user, $message, MessageVisibility::PUBLIC->value);
+    }
+
+    /**
+     * Add an internal note. Notes do not count as a first response.
+     */
+    public function note(string $message, ?Model $user = null): Model
+    {
+        return $this->addMessage($user ?? auth()->user(), $message, MessageVisibility::INTERNAL->value);
+    }
+
+    protected function addMessage(?Model $user, string $message, string $visibility): Model
+    {
         return $this->messages()->create([
-            'user_id' => $user?->id ?? auth()->id(), // @phpstan-ignore-line
+            'user_id' => $user?->getKey() ?? auth()->id(),
             'message' => $message,
+            'visibility' => $visibility,
         ]);
+    }
+
+    protected function guardPublicReply(?Model $user): void
+    {
+        if (in_array($this->status, [Status::ARCHIVED->value, Status::CANCELLED->value], true)) {
+            throw new ReplyNotAllowed('This ticket is not open for replies.');
+        }
+
+        if ($this->is_locked && ! $this->bypassesLock($user)) {
+            throw new ReplyNotAllowed('This ticket is locked.');
+        }
+    }
+
+    protected function bypassesLock(?Model $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $callback = config('laravel_ticket.agents.callback');
+
+        if (is_callable($callback) && $callback($user)) {
+            return true;
+        }
+
+        if ($user instanceof CanManageTickets && $user->canManageTickets()) {
+            return true;
+        }
+
+        return (int) $user->getKey() === (int) $this->assigned_to;
     }
 }

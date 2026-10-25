@@ -31,7 +31,9 @@
 - [License](#license)
 
 ## Introduction
-__Laravel Ticket__ package, is a Backend API to handle your ticket system, with an easy way.
+Laravel Ticket is the domain for an IT service desk. It stores incidents, service requests, problems, and changes, and it enforces the workflow around them: public ticket numbers, impact and urgency, SLA clocks, queues, approvals, audit history, and a service catalog.
+
+This package does not render a portal or send mail. Your application owns the screens and the notification delivery. The models raise events (`TicketOpened`, `TicketStatusChanged`, `TicketAssigned`, `TicketSlaBreached`, `ApprovalRequested`, `ApprovalDecided`) so you can hook mail, Slack, or a webhook in a listener. Schedule `php artisan tickets:evaluate-slas` every minute to flag breaches while a ticket is still open.
 
 ## Installation
 
@@ -288,6 +290,74 @@ class Ticket extends \Coderflex\LaravelTicket\Models\Ticket implements HasMedia
 ```
 
 The rest of the implementation, head to [the docs](https://spatie.be/docs/laravel-medialibrary/v10/introduction) of spatie package to know more.
+
+## Enterprise service desk
+
+Open a ticket through `TicketDesk`. Priority is scored from impact and urgency unless you pass one yourself. The row receives a uuid and a number such as `INC-000001`, `REQ-000001`, `PRB-000001`, or `CHG-000001`.
+
+```php
+use Coderflex\LaravelTicket\Desk\TicketDesk;
+
+$ticket = app(TicketDesk::class)->open([
+    'title' => 'VPN is down',
+    'message' => 'The remote gateway stopped answering.',
+    'type' => 'incident', // incident, service_request, problem, change
+    'impact' => 'high',   // low, medium, high, critical
+    'urgency' => 'high',
+    'channel' => 'portal',
+    'organization_id' => $organization->id,
+    'assignment_group_id' => $group->id,
+    'service_id' => $service->id,
+], $requestUser);
+```
+
+Move the ticket with the workflow methods. Illegal moves throw `InvalidTicketTransition`. A change cannot enter `in_progress` until someone approves it (`ApprovalRequired`). Resolving or closing throws `MissingCustomFields` when a required custom field is empty.
+
+```php
+$ticket->assignTo($agent);
+$ticket->assignGroup($networkGroup);
+$ticket->start();                 // in_progress
+$ticket->pend('customer');        // pauses the SLA
+$ticket->resolve($resolutionCode); // or close(), cancel(), archive()
+$ticket->requestApproval($manager)->approve('Window approved.');
+```
+
+Status is one of `new`, `open`, `in_progress`, `pending`, `resolved`, `closed`, `cancelled`, `archived`. `isClosed()` is true only for `closed`. Pending reasons are `customer`, `vendor`, `change`, and `other`.
+
+Public replies and internal notes are different records. A public reply from someone other than the requester stamps the first-response clock. Notes do not. Locked, archived, and cancelled tickets reject public replies; the assignee and any user that implements `CanManageTickets` (or the `laravel_ticket.agents.callback` config) can still reply to a locked ticket.
+
+```php
+$ticket->messageAsUser($agent, 'We failed the link over.');
+$ticket->note('Carrier ticket is ETTR 16:00.', $agent);
+```
+
+Link related work, record time, and attach a file:
+
+```php
+$problem->addChild($incident);
+$incident->markDuplicateOf($canonical);
+$incident->logWork(30, 'Rebooted the concentrator.', $agent);
+$incident->attachFile($request->file('log'), $agent);
+$incident->setCustom('hostname', 'vpn-edge-01');
+```
+
+Seeded SLA policies cover critical (15m / 4h), high (1h / 8h), normal and medium (4h / 24h), and low (8h / 48h). A policy with a matching ticket type wins over the priority default. Policies can count minutes on the business calendar in `config/laravel_ticket.php`. Entering `pending` pauses the clock and pushes both due dates when work resumes.
+
+Queues and reporting:
+
+```php
+Ticket::query()->visibleTo($user)->active()->get();
+$report = app(\Coderflex\LaravelTicket\Reporting\ServiceDeskReport::class);
+$report->backlog();
+$report->slaAttainment();
+$report->meanTimeToResolveMinutes();
+```
+
+`TicketPolicy` is registered for the ticket model. Requesters, affected users, watchers, assignees, and assignment-group members can view. Agents, assignees, and group members can update. Only agents can delete. Implement `Coderflex\LaravelTicket\Contracts\CanManageTickets` on the user model, or return true from `laravel_ticket.agents.callback`, to mark an agent.
+
+Every status and assignment change is written to `ticket_activities`. Categories can be nested with `parent_id`. Services can point at an assignment group, and configuration items attach to both a service and a ticket.
+
+If you already published the original migrations, publish and run `install_enterprise_itsm` as well. It widens `tickets.message` to text and adds the service-desk tables.
 
 ## Testing
 
