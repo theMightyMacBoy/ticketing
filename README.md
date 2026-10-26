@@ -24,6 +24,7 @@
   - [Category \& Label Scopes](#category--label-scopes)
 - [Handling File Upload](#handling-file-upload)
 - [Desk and portal](#desk-and-portal)
+- [Sign-in](#sign-in)
 - [Testing](#testing)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
@@ -453,7 +454,20 @@ That command creates IT, HR, and Facilities, three inactive mailboxes (`help@exa
 
 The sample tickets are "VPN is down for Ada", the confidential HR case "Payroll question", and "Badge for the west door".
 
-Set `TICKET_DEMO_SEED=true` before `migrate` to insert the departments, groups, calendars, catalog, and inactive mailboxes during the migration. The migration does not create users, because the users table may not exist yet. Set `TICKET_DEMO_LOGIN=true` to expose `/desk/login` for the demo password. Leave both false outside a demo.
+Set `TICKET_DEMO_SEED=true` before `migrate` to insert the departments, groups, calendars, catalog, and inactive mailboxes during the migration. The migration does not create users, because the users table may not exist yet. Set `TICKET_DEMO_LOGIN=true` or `TICKET_AUTH_LOGIN=true` to expose `/desk/login`. Leave both false when the host application has its own gate.
+
+## Sign-in
+
+`/desk/login` asks for an email address and then decides.
+
+- A domain on an active identity provider continues at that provider. The address is sent as `login_hint`. The provider must speak OpenID Connect and sign ID tokens with RS256. Register the redirect URI `/desk/login/sso/{slug}/callback`.
+- A local account continues to a password page.
+- An unknown address that is not on a sign-in domain is rejected.
+- In the directory, "Local password" keeps a break-glass account on a company domain. "Single sign-on" pins that address to the provider for its domain. "Detect from the email domain" removes the override.
+
+Add the provider on the setup page: name, email domain, issuer, client id, and client secret. For Entra ID the issuer is `https://login.microsoftonline.com/{tenant}/v2.0`. This app registration is separate from the mailbox Graph app. The ID token must include `email`, `preferred_username`, or `upn`, and that address must be the one the person typed. The first successful sign-in creates the account. Department agent rights still come from the directory.
+
+Publish and run `add_single_sign_on`.
 
 When `laravel_ticket.notifications.mail` is true, opening a ticket emails the requester the ticket number. Assignment, an approval request, and an SLA breach are emailed too. A failed mailbox fetch stores `last_error` and emails `TICKET_MAIL_ALERT_TO`. Fetch follows Graph pages up to `mail.fetch_limit` (100) and, if Graph rejects `isRead eq false` with HTTP 400, retries that page once without the filter.
 

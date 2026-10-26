@@ -55,6 +55,7 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
                 'add_departments',
                 'add_launch_desk',
                 'seed_demo_desk',
+                'add_single_sign_on',
             );
     }
 

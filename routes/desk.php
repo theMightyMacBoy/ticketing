@@ -2,12 +2,12 @@
 
 use Coderflex\LaravelTicket\Http\Controllers\CatalogController;
 use Coderflex\LaravelTicket\Http\Controllers\DirectoryController;
-use Coderflex\LaravelTicket\Http\Controllers\LoginController;
 use Coderflex\LaravelTicket\Http\Controllers\PortalController;
 use Coderflex\LaravelTicket\Http\Controllers\PrivacyController;
 use Coderflex\LaravelTicket\Http\Controllers\QueueController;
 use Coderflex\LaravelTicket\Http\Controllers\SetupController;
 use Coderflex\LaravelTicket\Http\Controllers\TicketController;
+use Coderflex\LaravelTicket\Http\DeskAuthRoutes;
 use Illuminate\Support\Facades\Route;
 
 $middleware = config('laravel_ticket.routes.middleware', ['web', 'auth']);
@@ -38,6 +38,7 @@ Route::middleware($middleware)->group(function () use ($desk, $portal) {
     Route::post($desk.'/setup/services', [SetupController::class, 'storeService'])->name('laravel-ticket.setup.services');
     Route::post($desk.'/setup/calendars', [SetupController::class, 'storeCalendar'])->name('laravel-ticket.setup.calendars');
     Route::post($desk.'/setup/mailboxes', [SetupController::class, 'storeMailbox'])->name('laravel-ticket.setup.mailboxes');
+    Route::post($desk.'/setup/providers', [SetupController::class, 'storeIdentity'])->name('laravel-ticket.setup.providers');
 
     Route::get($desk.'/directory', [DirectoryController::class, 'index'])->name('laravel-ticket.directory');
     Route::post($desk.'/directory', [DirectoryController::class, 'store'])->name('laravel-ticket.directory.store');
@@ -51,12 +52,6 @@ Route::middleware($middleware)->group(function () use ($desk, $portal) {
     Route::post($portal.'/tickets/{ticket}/reply', [PortalController::class, 'reply'])->name('laravel-ticket.portal.tickets.reply');
 });
 
-if (config('laravel_ticket.demo.login')) {
-    Route::middleware('web')->group(function () use ($desk) {
-        Route::get($desk.'/login', [LoginController::class, 'create'])->name('laravel-ticket.login');
-        Route::post($desk.'/login', [LoginController::class, 'store'])->name('laravel-ticket.login.store');
-        Route::post($desk.'/logout', [LoginController::class, 'destroy'])
-            ->middleware('auth')
-            ->name('laravel-ticket.logout');
-    });
+if (config('laravel_ticket.demo.login') || config('laravel_ticket.auth.login')) {
+    DeskAuthRoutes::register($desk);
 }

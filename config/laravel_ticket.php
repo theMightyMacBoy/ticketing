@@ -3,12 +3,14 @@
 use Coderflex\LaravelTicket\Models\Approval;
 use Coderflex\LaravelTicket\Models\AssignmentGroup;
 use Coderflex\LaravelTicket\Models\Attachment;
+use Coderflex\LaravelTicket\Models\AuthIdentity;
 use Coderflex\LaravelTicket\Models\BusinessCalendar;
 use Coderflex\LaravelTicket\Models\Category;
 use Coderflex\LaravelTicket\Models\ConfigurationItem;
 use Coderflex\LaravelTicket\Models\CustomFieldDefinition;
 use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\EmailMessage;
+use Coderflex\LaravelTicket\Models\IdentityProvider;
 use Coderflex\LaravelTicket\Models\Label;
 use Coderflex\LaravelTicket\Models\Mailbox;
 use Coderflex\LaravelTicket\Models\Message;
@@ -85,6 +87,8 @@ return [
         'ticket_types' => 'ticket_types',
         'business_calendars' => 'business_calendars',
         'staff_profiles' => 'staff_profiles',
+        'identity_providers' => 'identity_providers',
+        'auth_identities' => 'auth_identities',
     ],
 
     'models' => [
@@ -111,6 +115,8 @@ return [
         'ticket_type' => TicketTypeDefinition::class,
         'business_calendar' => BusinessCalendar::class,
         'staff_profile' => StaffProfile::class,
+        'identity_provider' => IdentityProvider::class,
+        'auth_identity' => AuthIdentity::class,
     ],
 
     /*
@@ -251,6 +257,23 @@ return [
         'seed' => env('TICKET_DEMO_SEED', false),
         'password' => env('TICKET_DEMO_PASSWORD', 'password'),
         'login' => env('TICKET_DEMO_LOGIN', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sign-in
+    |--------------------------------------------------------------------------
+    |
+    | login exposes /desk/login. The person enters an email address. A domain
+    | on an active identity provider continues at that provider. Any other
+    | registered account continues to a password. An auth identity with
+    | method local stays on the password even when the domain uses single
+    | sign-on. Leave login false when the host application has its own gate.
+    | demo.login also exposes this screen.
+    |
+    */
+    'auth' => [
+        'login' => env('TICKET_AUTH_LOGIN', false),
     ],
 
     'routes' => [

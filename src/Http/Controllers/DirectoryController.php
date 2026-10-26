@@ -2,6 +2,7 @@
 
 namespace Coderflex\LaravelTicket\Http\Controllers;
 
+use Coderflex\LaravelTicket\Auth\SignInPreference;
 use Coderflex\LaravelTicket\Directory\StaffDirectory;
 use Coderflex\LaravelTicket\Http\DeskAccess;
 use Coderflex\LaravelTicket\Models\Department;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class DirectoryController
 {
@@ -32,6 +34,7 @@ class DirectoryController
             'department_id' => ['nullable', 'integer'],
             'employee_number' => ['nullable', 'string'],
             'is_agent' => ['nullable', 'boolean'],
+            'authentication' => ['nullable', 'in:inherit,local,sso'],
         ]);
 
         $departmentId = $request->filled('department_id') ? (int) $data['department_id'] : null;
@@ -49,6 +52,14 @@ class DirectoryController
             $request->boolean('is_agent'),
             $data['employee_number'] ?? null,
         );
+
+        if (is_string($data['authentication'] ?? null) && $data['authentication'] !== '') {
+            try {
+                app(SignInPreference::class)->apply($data['email'], $data['authentication']);
+            } catch (InvalidArgumentException $exception) {
+                return back()->withErrors(['authentication' => $exception->getMessage()]);
+            }
+        }
 
         return back()->with('status', 'Directory updated.');
     }

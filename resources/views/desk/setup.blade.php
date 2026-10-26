@@ -134,4 +134,27 @@
             <button type="submit">Add inactive mailbox</button>
         </form>
     </section>
+
+    <section>
+        <h2>Single sign-on</h2>
+        <ul>
+            @foreach ($providers as $provider)
+                <li>{{ $provider->name }} · {{ implode(', ', $provider->domains) }} · {{ $provider->issuer }}</li>
+            @endforeach
+        </ul>
+        <form method="post" action="{{ route('laravel-ticket.setup.providers') }}">
+            @csrf
+            <label for="provider-name">Name</label>
+            <input id="provider-name" name="name" required>
+            <label for="provider-domain">Email domain</label>
+            <input id="provider-domain" name="domain" required placeholder="contoso.com">
+            <label for="provider-issuer">Issuer</label>
+            <input id="provider-issuer" name="issuer" required placeholder="https://login.microsoftonline.com/tenant-id/v2.0">
+            <label for="provider-client-id">Client id</label>
+            <input id="provider-client-id" name="client_id" required>
+            <label for="provider-client-secret">Client secret</label>
+            <input id="provider-client-secret" name="client_secret" type="password" required>
+            <button type="submit">Add sign-in provider</button>
+        </form>
+    </section>
 @endsection

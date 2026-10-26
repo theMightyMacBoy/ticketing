@@ -38,6 +38,12 @@
             @endforeach
         </select>
         <label><input type="checkbox" name="is_agent" value="1"> Agent</label>
+        <label for="authentication">Sign-in</label>
+        <select id="authentication" name="authentication">
+            <option value="inherit">Detect from the email domain</option>
+            <option value="local">Local password</option>
+            <option value="sso">Single sign-on</option>
+        </select>
         <button type="submit">Save person</button>
     </form>
 @endsection

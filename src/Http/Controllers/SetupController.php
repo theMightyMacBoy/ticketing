@@ -7,6 +7,7 @@ use Coderflex\LaravelTicket\Models\AssignmentGroup;
 use Coderflex\LaravelTicket\Models\BusinessCalendar;
 use Coderflex\LaravelTicket\Models\CustomFieldDefinition;
 use Coderflex\LaravelTicket\Models\Department;
+use Coderflex\LaravelTicket\Models\IdentityProvider;
 use Coderflex\LaravelTicket\Models\Mailbox;
 use Coderflex\LaravelTicket\Models\Service;
 use Coderflex\LaravelTicket\Models\TicketTypeDefinition;
@@ -15,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class SetupController
 {
@@ -28,6 +30,7 @@ class SetupController
             'mailboxes' => Mailbox::query()->orderBy('address')->get(),
             'services' => Service::query()->orderBy('name')->get(),
             'calendars' => BusinessCalendar::query()->orderBy('name')->get(),
+            'providers' => IdentityProvider::query()->orderBy('name')->get(),
         ]);
     }
 
@@ -194,6 +197,36 @@ class SetupController
         ]);
 
         return back()->with('status', 'Mailbox saved. It stays inactive until credentials are added.');
+    }
+
+    public function storeIdentity(Request $request): RedirectResponse
+    {
+        $this->agent($request);
+        $data = $request->validate([
+            'name' => ['required', 'string'],
+            'domain' => ['required', 'string', 'regex:/^[A-Za-z0-9.-]+$/'],
+            'issuer' => ['required', 'url', 'starts_with:https://'],
+            'client_id' => ['required', 'string'],
+            'client_secret' => ['required', 'string'],
+        ]);
+
+        $provider = new IdentityProvider([
+            'name' => $data['name'],
+            'slug' => $this->slug(null, $data['name']),
+            'domains' => [strtolower($data['domain'])],
+            'issuer' => rtrim($data['issuer'], '/'),
+            'client_id' => $data['client_id'],
+            'client_secret' => $data['client_secret'],
+            'is_active' => true,
+        ]);
+
+        try {
+            $provider->save();
+        } catch (InvalidArgumentException $exception) {
+            return back()->withInput()->withErrors(['domain' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', 'Sign-in provider saved.');
     }
 
     private function agent(Request $request): Model
