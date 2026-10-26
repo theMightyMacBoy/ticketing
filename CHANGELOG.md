@@ -4,6 +4,7 @@ All notable changes to `laravel-ticket` will be documented in this file.
 
 ## Unreleased
 
+- Add an admin guide and a user guide under `docs/`.
 - Sync a single sign-on user's manager from the ID token or from Microsoft Graph. The manager gets two queues, "Tickets opened by my team" and "Open tickets by my team", and can open those tickets, including confidential ones.
 - A support group can block the requester's manager from those team queues. Tickets on that group stay hidden from the manager unless the manager is also working the ticket. The demo HR group uses the block.
 - Restyle the desk, portal, and sign-in screens as one console: a fixed navigation rail, a dense queue, and a ticket page with the conversation separate from assignment and status.

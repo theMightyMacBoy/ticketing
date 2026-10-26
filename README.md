@@ -9,6 +9,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/coderflex/laravel-ticket.svg?style=flat-square)](https://packagist.org/packages/coderflex/laravel-ticket)
 
 - [Introduction](#introduction)
+- [Documentation](#documentation)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Preparing your model](#preparing-your-model)
@@ -36,6 +37,11 @@
 Laravel Ticket is a multi-department service desk. It stores incidents, service requests, problems, and changes, and it serves an agent desk and a requester portal. Shared Exchange Online mailboxes open tickets. Public replies go out through the application's SMTP relay.
 
 The models raise events (`TicketOpened`, `TicketStatusChanged`, `TicketAssigned`, `TicketSlaBreached`, `ApprovalRequested`, `ApprovalDecided`) so you can add Slack or a webhook beside the built-in mail. Schedule `php artisan tickets:evaluate-slas` every minute to flag breaches while a ticket is still open. `tickets:fetch-mail` and `tickets:purge-mail` run on their own schedule when `laravel_ticket.mail.schedule` is true.
+
+## Documentation
+
+- [Admin guide](docs/admin-guide.md) covers installation, every configuration option, departments, mailboxes, sign-in, manager visibility, and privacy.
+- [User guide](docs/user-guide.md) covers the desk for requesters, agents, and managers.
 
 ## Installation
 
