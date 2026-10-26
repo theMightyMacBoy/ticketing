@@ -438,7 +438,7 @@ A platform admin who implements `CanManageTickets` can see every non-confidentia
 
 ## Desk and portal
 
-Agents work at `/desk`. Requesters use `/portal`. Both routes use the `web` and `auth` middleware. Change `routes.desk`, `routes.portal`, and `routes.middleware` in the published config.
+Agents work at `/desk`. Requesters use `/portal`. Both routes use the `web` and `auth` middleware, and both use the same desk layout. Change `routes.desk`, `routes.portal`, and `routes.middleware` in the published config.
 
 The queue searches title, number, requester, and the opening message. On a ticket, an agent can send a public reply, leave an internal note, assign by email, transfer to a department or group, change status, and approve. A requester sees only their own tickets, opens a catalog item, and replies in the portal. Setup and the directory are limited to department agents and platform admins.
 

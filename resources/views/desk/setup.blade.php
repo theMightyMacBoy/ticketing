@@ -1,159 +1,257 @@
 @extends('laravel-ticket::desk.layout')
 
-@section('content')
-    <h1>Setup</h1>
+@section('title', 'Setup')
 
-    <section>
-        <h2>Departments</h2>
-        <ul>
-            @foreach ($departments as $department)
-                <li>{{ $department->name }}</li>
-            @endforeach
-        </ul>
-        <form method="post" action="{{ route('laravel-ticket.setup.departments') }}">
+@section('content')
+    <div class="page-head">
+        <div>
+            <p class="kicker">Administration</p>
+            <h1>Setup</h1>
+            <p class="lede">Departments, groups, mail, and sign-in. New mailboxes are saved inactive.</p>
+        </div>
+    </div>
+    <nav class="jump" aria-label="Setup sections">
+        <a href="#departments">Departments</a>
+        <a href="#groups">Support groups</a>
+        <a href="#types">Ticket type</a>
+        <a href="#catalog">Catalog item</a>
+        <a href="#calendars">Calendar</a>
+        <a href="#mailboxes">Mailboxes</a>
+        <a href="#sign-in">Single sign-on</a>
+    </nav>
+
+    <section class="setup-section" id="departments">
+        <div>
+            <h2>Departments</h2>
+            <ul class="plain">
+                @forelse ($departments as $department)
+                    <li>{{ $department->name }}</li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.departments') }}">
             @csrf
-            <label for="department-name">Name</label>
-            <input id="department-name" name="name" required>
+            <label for="department-name">Name
+                <input id="department-name" name="name" required>
+            </label>
             <button type="submit">Add department</button>
         </form>
     </section>
 
-    <section>
-        <h2>Support groups</h2>
-        <ul>
-            @foreach ($groups as $group)
-                <li>{{ $group->name }}</li>
-            @endforeach
-        </ul>
-        <form method="post" action="{{ route('laravel-ticket.setup.groups') }}">
+    <section class="setup-section" id="groups">
+        <div>
+            <h2>Support groups</h2>
+            <ul class="plain">
+                @forelse ($groups as $group)
+                    <li>
+                        {{ $group->name }}
+                        @if (optional($group->department)->name)
+                            <span class="muted">{{ $group->department->name }}</span>
+                        @endif
+                    </li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.groups') }}">
             @csrf
-            <label for="group-name">Name</label>
-            <input id="group-name" name="name" required>
-            <label for="group-department">Department</label>
-            <select id="group-department" name="department_id" required>
-                @foreach ($departments as $department)
-                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                @endforeach
-            </select>
+            <label for="group-name">Name
+                <input id="group-name" name="name" required>
+            </label>
+            <label for="group-department">Department
+                <select id="group-department" name="department_id" required>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            </label>
             <button type="submit">Add group</button>
         </form>
     </section>
 
-    <section>
-        <h2>Ticket type</h2>
-        <form method="post" action="{{ route('laravel-ticket.setup.types') }}">
+    <section class="setup-section" id="types">
+        <div>
+            <h2>Ticket type</h2>
+            <ul class="plain">
+                @forelse ($types as $type)
+                    <li>
+                        {{ $type->name }}
+                        <span class="muted">{{ $type->prefix }}@if ($type->requires_approval) · Requires approval @endif @if (optional($type->department)->name) · {{ $type->department->name }} @else · Global @endif</span>
+                    </li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.types') }}">
             @csrf
-            <label for="type-name">Name</label>
-            <input id="type-name" name="name" required>
-            <label for="type-prefix">Prefix</label>
-            <input id="type-prefix" name="prefix" required maxlength="12">
-            <label for="type-department">Department</label>
-            <select id="type-department" name="department_id">
-                <option value="">Global</option>
-                @foreach ($departments as $department)
-                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                @endforeach
-            </select>
-            <label><input type="checkbox" name="requires_approval" value="1"> Requires approval</label>
+            <label for="type-name">Name
+                <input id="type-name" name="name" required>
+            </label>
+            <label for="type-prefix">Prefix
+                <input id="type-prefix" name="prefix" required maxlength="12">
+            </label>
+            <label for="type-department">Department
+                <select id="type-department" name="department_id">
+                    <option value="">Global</option>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="check">
+                <input type="checkbox" name="requires_approval" value="1">
+                <span>Requires approval</span>
+            </label>
             <button type="submit">Add type</button>
         </form>
     </section>
 
-    <section>
-        <h2>Catalog item</h2>
-        <form method="post" action="{{ route('laravel-ticket.setup.services') }}">
+    <section class="setup-section" id="catalog">
+        <div>
+            <h2>Catalog item</h2>
+            <ul class="plain">
+                @forelse ($services as $item)
+                    <li>{{ $item->name }}</li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.services') }}">
             @csrf
-            <label for="service-name">Name</label>
-            <input id="service-name" name="name" required>
-            <label for="service-department">Department</label>
-            <select id="service-department" name="department_id" required>
-                @foreach ($departments as $department)
-                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                @endforeach
-            </select>
-            <label for="service-group">Support group</label>
-            <select id="service-group" name="assignment_group_id">
-                <option value="">None</option>
-                @foreach ($groups as $group)
-                    <option value="{{ $group->id }}">{{ $group->name }}</option>
-                @endforeach
-            </select>
-            <label for="field-key">Required field key</label>
-            <input id="field-key" name="field_key">
-            <label for="field-name">Required field label</label>
-            <input id="field-name" name="field_name">
+            <label for="service-name">Name
+                <input id="service-name" name="name" required>
+            </label>
+            <label for="service-department">Department
+                <select id="service-department" name="department_id" required>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label for="service-group">Support group
+                <select id="service-group" name="assignment_group_id">
+                    <option value="">None</option>
+                    @foreach ($groups as $group)
+                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label for="field-key">Required field key
+                <input id="field-key" name="field_key">
+            </label>
+            <label for="field-name">Required field label
+                <input id="field-name" name="field_name">
+            </label>
             <button type="submit">Add catalog item</button>
         </form>
     </section>
 
-    <section>
-        <h2>Calendar</h2>
-        <ul>
-            @foreach ($calendars as $calendar)
-                <li>{{ $calendar->name }} · {{ $calendar->timezone }}</li>
-            @endforeach
-        </ul>
-        <form method="post" action="{{ route('laravel-ticket.setup.calendars') }}">
+    <section class="setup-section" id="calendars">
+        <div>
+            <h2>Calendar</h2>
+            <ul class="plain">
+                @forelse ($calendars as $calendar)
+                    <li>{{ $calendar->name }} <span class="muted">{{ $calendar->timezone }}</span></li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.calendars') }}">
             @csrf
-            <label for="calendar-department">Department</label>
-            <select id="calendar-department" name="department_id" required>
-                @foreach ($departments as $department)
-                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                @endforeach
-            </select>
-            <label for="timezone">Timezone</label>
-            <input id="timezone" name="timezone" value="America/Detroit" required>
+            <label for="calendar-department">Department
+                <select id="calendar-department" name="department_id" required>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label for="timezone">Timezone
+                <input id="timezone" name="timezone" value="America/Detroit" required>
+            </label>
             <button type="submit">Save weekday hours</button>
         </form>
     </section>
 
-    <section>
-        <h2>Mailboxes</h2>
-        <ul>
-            @foreach ($mailboxes as $mailbox)
-                <li>{{ $mailbox->address }} @if (! $mailbox->is_active) inactive @endif
-                    @if ($mailbox->last_error) · {{ $mailbox->last_error }} @endif
-                </li>
-            @endforeach
-        </ul>
-        <form method="post" action="{{ route('laravel-ticket.setup.mailboxes') }}">
+    <section class="setup-section" id="mailboxes">
+        <div>
+            <h2>Mailboxes</h2>
+            <ul class="plain">
+                @forelse ($mailboxes as $mailbox)
+                    <li>
+                        <span class="mono">{{ $mailbox->address }}</span>
+                        @if (! $mailbox->is_active)
+                            <span class="muted">Inactive</span>
+                        @endif
+                        @if ($mailbox->last_error)
+                            <span class="error-inline">{{ $mailbox->last_error }}</span>
+                        @endif
+                    </li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.mailboxes') }}">
             @csrf
-            <label for="mailbox-name">Name</label>
-            <input id="mailbox-name" name="name" required>
-            <label for="mailbox-address">Address</label>
-            <input id="mailbox-address" name="address" type="email" required>
-            <label for="mailbox-department">Department</label>
-            <select id="mailbox-department" name="department_id">
-                <option value="">None</option>
-                @foreach ($departments as $department)
-                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                @endforeach
-            </select>
-            <label for="retention">Delete read mail after days</label>
-            <input id="retention" name="delete_read_after_days" type="number" min="1">
+            <label for="mailbox-name">Name
+                <input id="mailbox-name" name="name" required>
+            </label>
+            <label for="mailbox-address">Address
+                <input id="mailbox-address" name="address" type="email" required>
+            </label>
+            <label for="mailbox-department">Department
+                <select id="mailbox-department" name="department_id">
+                    <option value="">None</option>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label for="retention">Delete read mail after days
+                <input id="retention" name="delete_read_after_days" type="number" min="1">
+            </label>
             <button type="submit">Add inactive mailbox</button>
         </form>
     </section>
 
-    <section>
-        <h2>Single sign-on</h2>
-        <ul>
-            @foreach ($providers as $provider)
-                <li>{{ $provider->name }} · {{ implode(', ', $provider->domains) }} · {{ $provider->issuer }}</li>
-            @endforeach
-        </ul>
-        <form method="post" action="{{ route('laravel-ticket.setup.providers') }}">
+    <section class="setup-section" id="sign-in">
+        <div>
+            <h2>Single sign-on</h2>
+            <ul class="plain">
+                @forelse ($providers as $provider)
+                    <li>
+                        {{ $provider->name }}
+                        <span class="muted">{{ implode(', ', $provider->domains) }}</span>
+                        <span class="issuer muted">{{ $provider->issuer }}</span>
+                    </li>
+                @empty
+                    <li class="muted">None yet.</li>
+                @endforelse
+            </ul>
+        </div>
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.setup.providers') }}">
             @csrf
-            <label for="provider-name">Name</label>
-            <input id="provider-name" name="name" required>
-            <label for="provider-domain">Email domain</label>
-            <input id="provider-domain" name="domain" required placeholder="contoso.com">
-            <label for="provider-issuer">Issuer</label>
-            <input id="provider-issuer" name="issuer" required placeholder="https://login.microsoftonline.com/tenant-id/v2.0">
-            <label for="provider-client-id">Client id</label>
-            <input id="provider-client-id" name="client_id" required>
-            <label for="provider-client-secret">Client secret</label>
-            <input id="provider-client-secret" name="client_secret" type="password" required>
+            <label for="provider-name">Name
+                <input id="provider-name" name="name" required>
+            </label>
+            <label for="provider-domain">Email domain
+                <input id="provider-domain" name="domain" required placeholder="contoso.com">
+            </label>
+            <label for="provider-issuer">Issuer
+                <input id="provider-issuer" name="issuer" required placeholder="https://login.microsoftonline.com/tenant-id/v2.0">
+            </label>
+            <label for="provider-client-id">Client id
+                <input id="provider-client-id" name="client_id" required>
+            </label>
+            <label for="provider-client-secret">Client secret
+                <input id="provider-client-secret" name="client_secret" type="password" required autocomplete="new-password">
+            </label>
             <button type="submit">Add sign-in provider</button>
         </form>
     </section>

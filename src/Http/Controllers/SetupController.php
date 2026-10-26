@@ -31,6 +31,7 @@ class SetupController
             'services' => Service::query()->orderBy('name')->get(),
             'calendars' => BusinessCalendar::query()->orderBy('name')->get(),
             'providers' => IdentityProvider::query()->orderBy('name')->get(),
+            'types' => TicketTypeDefinition::query()->with('department')->orderBy('name')->get(),
         ]);
     }
 

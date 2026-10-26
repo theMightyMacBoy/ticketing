@@ -1,26 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Password</title>
-</head>
-<body>
+@extends('laravel-ticket::desk.gate')
+
+@section('title', 'Password')
+
+@section('content')
     <h1>Password</h1>
-    <p>Enter the password for {{ $email }}.</p>
-    @if ($errors->any())
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    @endif
-    <form method="post" action="{{ route('laravel-ticket.login.store') }}">
+    <p class="lede">Enter the password for {{ $email }}.</p>
+    <form class="form-stack" method="post" action="{{ route('laravel-ticket.login.store') }}">
         @csrf
         <input type="hidden" name="email" value="{{ $email }}">
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" required autofocus>
+        <label for="password">Password
+            <input id="password" name="password" type="password" required autofocus autocomplete="current-password">
+        </label>
         <button type="submit">Sign in</button>
     </form>
-    <p><a href="{{ route('laravel-ticket.login') }}">Use a different email</a></p>
-</body>
-</html>
+    <a class="inline-link" href="{{ route('laravel-ticket.login') }}">Use a different email</a>
+@endsection

@@ -3,6 +3,7 @@
 use Coderflex\LaravelTicket\Demo\DeskDemoSeeder;
 use Coderflex\LaravelTicket\Desk\TicketDesk;
 use Coderflex\LaravelTicket\Http\Controllers\LoginController;
+use Coderflex\LaravelTicket\Http\DeskAuthRoutes;
 use Coderflex\LaravelTicket\Mail\GraphMailboxReader;
 use Coderflex\LaravelTicket\Mail\MailboxReader;
 use Coderflex\LaravelTicket\Mail\TicketNoticeMail;
@@ -378,4 +379,65 @@ it('signs in a demo user when the login screen is mounted', function () {
     ])->assertRedirect(route('laravel-ticket.desk'));
 
     $this->get(route('laravel-ticket.desk'))->assertOk();
+});
+
+it('renders the desk, portal, and sign-in screens as one console', function () {
+    demoDesk();
+    deskWithoutCsrf();
+    DeskAuthRoutes::register('desk');
+
+    $agent = User::query()->where('email', 'it.agent@example.com')->firstOrFail();
+    $ada = User::query()->where('email', 'ada@example.com')->firstOrFail();
+    $vpn = Ticket::query()->where('title', 'VPN is down for Ada')->firstOrFail();
+    $service = Service::query()->where('slug', 'vpn')->firstOrFail();
+
+    $this->actingAs($agent)
+        ->get(route('laravel-ticket.desk'))
+        ->assertOk()
+        ->assertSee('class="shell"', false)
+        ->assertSee('Open work')
+        ->assertSee('VPN is down for Ada')
+        ->assertSee('Administration')
+        ->assertSee('it.agent@example.com')
+        ->assertDontSee('Georgia', false);
+
+    $this->actingAs($agent)
+        ->get(route('laravel-ticket.tickets.show', $vpn))
+        ->assertOk()
+        ->assertSee('INC-000001')
+        ->assertSee('Public reply')
+        ->assertSee('Internal note')
+        ->assertSee('Ada cannot reach the corporate VPN.');
+
+    $this->actingAs($agent)
+        ->get(route('laravel-ticket.setup'))
+        ->assertOk()
+        ->assertSee('Incident')
+        ->assertSee('help@example.com')
+        ->assertSee('Single sign-on');
+
+    $this->actingAs($ada)
+        ->get(route('laravel-ticket.portal'))
+        ->assertOk()
+        ->assertSee('My tickets')
+        ->assertSee('Payroll question')
+        ->assertDontSee('Administration');
+
+    $this->actingAs($ada)
+        ->get(route('laravel-ticket.catalog', ['service' => $service->id]))
+        ->assertOk()
+        ->assertSee('Hostname')
+        ->assertSee('Open ticket');
+
+    $this->get(route('laravel-ticket.login'))
+        ->assertOk()
+        ->assertSee('class="gate-split"', false)
+        ->assertSee('Company addresses continue at the identity provider')
+        ->assertDontSee('name="password"', false);
+
+    $this->withSession([LoginController::EMAIL => 'ada@example.com'])
+        ->get(route('laravel-ticket.login.password'))
+        ->assertOk()
+        ->assertSee('Enter the password for ada@example.com')
+        ->assertSee('name="password"', false);
 });
