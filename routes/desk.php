@@ -6,6 +6,7 @@ use Coderflex\LaravelTicket\Http\Controllers\PortalController;
 use Coderflex\LaravelTicket\Http\Controllers\PrivacyController;
 use Coderflex\LaravelTicket\Http\Controllers\QueueController;
 use Coderflex\LaravelTicket\Http\Controllers\SetupController;
+use Coderflex\LaravelTicket\Http\Controllers\TeamController;
 use Coderflex\LaravelTicket\Http\Controllers\TicketController;
 use Coderflex\LaravelTicket\Http\DeskAuthRoutes;
 use Illuminate\Support\Facades\Route;
@@ -28,12 +29,16 @@ Route::middleware($middleware)->group(function () use ($desk, $portal) {
     Route::post($desk.'/tickets/{ticket}/status', [TicketController::class, 'transition'])->name('laravel-ticket.tickets.status');
     Route::post($desk.'/tickets/{ticket}/approve', [TicketController::class, 'approve'])->name('laravel-ticket.tickets.approve');
 
+    Route::get($desk.'/team', [TeamController::class, 'opened'])->name('laravel-ticket.team');
+    Route::get($desk.'/team/open', [TeamController::class, 'open'])->name('laravel-ticket.team.open');
+
     Route::get($desk.'/catalog', [CatalogController::class, 'create'])->name('laravel-ticket.catalog');
     Route::post($desk.'/catalog', [CatalogController::class, 'store'])->name('laravel-ticket.catalog.store');
 
     Route::get($desk.'/setup', [SetupController::class, 'index'])->name('laravel-ticket.setup');
     Route::post($desk.'/setup/departments', [SetupController::class, 'storeDepartment'])->name('laravel-ticket.setup.departments');
     Route::post($desk.'/setup/groups', [SetupController::class, 'storeGroup'])->name('laravel-ticket.setup.groups');
+    Route::post($desk.'/setup/groups/{group}/managers', [SetupController::class, 'updateGroupManagers'])->name('laravel-ticket.setup.groups.managers');
     Route::post($desk.'/setup/types', [SetupController::class, 'storeType'])->name('laravel-ticket.setup.types');
     Route::post($desk.'/setup/services', [SetupController::class, 'storeService'])->name('laravel-ticket.setup.services');
     Route::post($desk.'/setup/calendars', [SetupController::class, 'storeCalendar'])->name('laravel-ticket.setup.calendars');

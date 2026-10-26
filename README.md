@@ -467,7 +467,13 @@ Set `TICKET_DEMO_SEED=true` before `migrate` to insert the departments, groups, 
 
 Add the provider on the setup page: name, email domain, issuer, client id, and client secret. For Entra ID the issuer is `https://login.microsoftonline.com/{tenant}/v2.0`. This app registration is separate from the mailbox Graph app. The ID token must include `email`, `preferred_username`, or `upn`, and that address must be the one the person typed. The first successful sign-in creates the account. Department agent rights still come from the directory.
 
-Publish and run `add_single_sign_on`.
+When someone signs in, the desk stores their manager. An ID token claim named `manager_email` (or `manager`, when that value is an email) is used first. For an Entra issuer, turn on "Sync each person's manager from Microsoft Graph" and grant the sign-in app application permission `User.Read.All`. Graph is asked for `/users/{id}/manager`. A refused lookup does not block sign-in and does not erase a manager already stored. Direct reports are the people whose synced manager email is the signed-in account.
+
+That manager then has two queues: **Tickets opened by my team** lists every ticket those people filed, including confidential tickets. **Open tickets by my team** is the same list without resolved, closed, cancelled, or archived tickets. The manager can open a ticket. Agent actions stay with the department.
+
+A support group can block that view. On setup, "Block the requester's manager" keeps tickets currently on that group out of both team queues, and the manager cannot open them through the team relationship. An HR queue uses this so a case between an employee and HR stays with HR. Someone who works that group, or is assigned the ticket, can still open it. The demo HR Employee Relations group is blocked. Publish and run `add_group_manager_block`.
+
+Publish and run `add_single_sign_on`, then `add_team_managers`.
 
 When `laravel_ticket.notifications.mail` is true, opening a ticket emails the requester the ticket number. Assignment, an approval request, and an SLA breach are emailed too. A failed mailbox fetch stores `last_error` and emails `TICKET_MAIL_ALERT_TO`. Fetch follows Graph pages up to `mail.fetch_limit` (100) and, if Graph rejects `isRead eq false` with HTTP 400, retries that page once without the filter.
 

@@ -32,6 +32,7 @@ class DeskDemoSeeder
         $network = $this->group('IT Network', 'it-network', $it);
         $desktop = $this->group('IT Desktop', 'it-desktop', $it);
         $relations = $this->group('HR Employee Relations', 'hr-employee-relations', $hr);
+        $relations->forceFill(['hide_from_managers' => true])->save();
         $buildings = $this->group('Facilities Buildings', 'facilities-buildings', $facilities);
 
         $this->share($network, $help, true);
@@ -69,6 +70,7 @@ class DeskDemoSeeder
 
         $requester = $ada->user()->first();
         $network = AssignmentGroup::query()->where('slug', 'it-network')->first();
+        $relations = AssignmentGroup::query()->where('slug', 'hr-employee-relations')->first();
         $buildings = AssignmentGroup::query()->where('slug', 'facilities-buildings')->first();
 
         $this->ticket('VPN is down for Ada', [
@@ -83,6 +85,7 @@ class DeskDemoSeeder
         $this->ticket('Payroll question', [
             'type' => 'case',
             'department_id' => $hr instanceof Department ? $hr->getKey() : null,
+            'assignment_group_id' => $relations instanceof AssignmentGroup ? $relations->getKey() : null,
             'is_confidential' => true,
             'requester_email' => 'ada@example.com',
             'message' => 'Ada asked about a missing payroll line.',

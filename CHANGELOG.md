@@ -4,6 +4,8 @@ All notable changes to `laravel-ticket` will be documented in this file.
 
 ## Unreleased
 
+- Sync a single sign-on user's manager from the ID token or from Microsoft Graph. The manager gets two queues, "Tickets opened by my team" and "Open tickets by my team", and can open those tickets, including confidential ones.
+- A support group can block the requester's manager from those team queues. Tickets on that group stay hidden from the manager unless the manager is also working the ticket. The demo HR group uses the block.
 - Restyle the desk, portal, and sign-in screens as one console: a fixed navigation rail, a dense queue, and a ticket page with the conversation separate from assignment and status.
 - Add email-first sign-in for requesters and technicians. The address is matched to an OpenID Connect provider or to a local password. A directory override can keep a local account on a company domain. The first successful single sign-on creates the account. ID tokens must be RS256 and must name the same email the person typed.
 - Add an agent desk and requester portal: queue search, public replies, internal notes, assignment, transfer, approval, catalog requests, setup, a staff directory, and requester export and erasure. Confidential tickets are hidden from platform admins who are not involved. Opening a ticket, assignment, approval, and SLA breach can be emailed. A failed mailbox fetch records `last_error` and can page `TICKET_MAIL_ALERT_TO`. Graph fetch follows extra pages and retries when the unread filter is rejected. `tickets:seed-demo` loads a demo IT, HR, and Facilities desk. Set `TICKET_DEMO_SEED=true` to insert that organization during migration.

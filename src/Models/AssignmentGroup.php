@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $mailbox_id
  * @property int|null $department_id
  * @property bool $is_mailbox_primary
+ * @property bool $hide_from_managers
  */
 class AssignmentGroup extends Model
 {
@@ -25,11 +26,13 @@ class AssignmentGroup extends Model
         'mailbox_id',
         'department_id',
         'is_mailbox_primary',
+        'hide_from_managers',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_mailbox_primary' => 'boolean',
+        'hide_from_managers' => 'boolean',
     ];
 
     public function mailbox(): BelongsTo

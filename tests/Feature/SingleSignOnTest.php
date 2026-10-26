@@ -333,5 +333,194 @@ it('saves a sign-in provider from setup without showing the secret', function ()
     $page = $this->actingAs($agent)->get(route('laravel-ticket.setup'));
 
     $page->assertOk()->assertSee('contoso.com')->assertDontSee('secret-1');
-    expect(IdentityProvider::query()->where('slug', 'contoso')->first()->client_secret)->toBe('secret-1');
+    expect(IdentityProvider::query()->where('slug', 'contoso')->first()->client_secret)->toBe('secret-1')
+        ->and(IdentityProvider::query()->where('slug', 'contoso')->first()->sync_manager)->toBeFalse();
+});
+
+it('stores a manager named by the identity token without calling graph', function () {
+    ssoRoutes();
+    ssoProvider();
+    $key = ssoKey();
+    $claims = [
+        'iss' => 'https://login.example.test',
+        'aud' => 'client-1',
+        'nonce' => 'nonce-1',
+        'exp' => time() + 600,
+        'sub' => 'ada-subject',
+        'email' => 'ada@contoso.com',
+        'name' => 'Ada Lovelace',
+        'manager_email' => 'Lead@contoso.com',
+    ];
+
+    Http::fake([
+        'https://login.example.test/.well-known/openid-configuration' => Http::response([
+            'issuer' => 'https://login.example.test',
+            'authorization_endpoint' => 'https://login.example.test/authorize',
+            'token_endpoint' => 'https://login.example.test/token',
+            'jwks_uri' => 'https://login.example.test/jwks',
+        ]),
+        'https://login.example.test/token' => Http::response([
+            'id_token' => ssoJwt($key['key'], $claims),
+        ]),
+        'https://login.example.test/jwks' => Http::response(['keys' => [[
+            'kty' => 'RSA',
+            'kid' => 'test-key',
+            'n' => $key['n'],
+            'e' => $key['e'],
+        ]]]),
+    ]);
+
+    $this->withSession([
+        'laravel-ticket.sso' => [
+            'state' => 'state-1',
+            'nonce' => 'nonce-1',
+            'verifier' => 'verifier-1',
+            'provider' => 'contoso',
+            'email' => 'ada@contoso.com',
+        ],
+    ])->get('/desk/login/sso/contoso/callback?code=auth-code&state=state-1')
+        ->assertRedirect(route('laravel-ticket.desk'));
+
+    expect(AuthIdentity::query()->where('email', 'ada@contoso.com')->value('manager_email'))->toBe('lead@contoso.com');
+
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'graph.microsoft.com'));
+});
+
+it('reads the manager from microsoft graph and ignores a refused lookup', function () {
+    ssoRoutes();
+    $key = ssoKey();
+    IdentityProvider::query()->create([
+        'name' => 'Contoso',
+        'slug' => 'contoso',
+        'domains' => ['contoso.com'],
+        'issuer' => 'https://login.microsoftonline.com/tenant-id/v2.0',
+        'client_id' => 'client-1',
+        'client_secret' => 'secret-1',
+        'is_active' => true,
+        'sync_manager' => true,
+    ]);
+    $jwks = ['keys' => [[
+        'kty' => 'RSA',
+        'kid' => 'test-key',
+        'n' => $key['n'],
+        'e' => $key['e'],
+    ]]];
+    $document = [
+        'issuer' => 'https://login.microsoftonline.com/tenant-id/v2.0',
+        'authorization_endpoint' => 'https://login.example.test/authorize',
+        'token_endpoint' => 'https://login.example.test/token',
+        'jwks_uri' => 'https://login.example.test/jwks',
+    ];
+    $claims = [
+        'iss' => 'https://login.microsoftonline.com/tenant-id/v2.0',
+        'aud' => 'client-1',
+        'nonce' => 'nonce-1',
+        'exp' => time() + 600,
+        'sub' => 'ada-subject',
+        'oid' => 'ada-object',
+        'email' => 'ada@contoso.com',
+        'name' => 'Ada Lovelace',
+    ];
+
+    Http::fake([
+        'https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration' => Http::response($document),
+        'https://login.example.test/token' => Http::response(['id_token' => ssoJwt($key['key'], $claims)]),
+        'https://login.example.test/jwks' => Http::response($jwks),
+        'https://login.microsoftonline.com/tenant-id/oauth2/v2.0/token' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ]),
+        'https://graph.microsoft.com/v1.0/users/ada-object/manager*' => Http::response([
+            'mail' => 'lead@contoso.com',
+            'userPrincipalName' => 'lead@contoso.com',
+        ]),
+    ]);
+
+    $this->withSession([
+        'laravel-ticket.sso' => [
+            'state' => 'state-1',
+            'nonce' => 'nonce-1',
+            'verifier' => 'verifier-1',
+            'provider' => 'contoso',
+            'email' => 'ada@contoso.com',
+        ],
+    ])->get('/desk/login/sso/contoso/callback?code=auth-code&state=state-1')
+        ->assertRedirect(route('laravel-ticket.desk'));
+
+    expect(AuthIdentity::query()->where('email', 'ada@contoso.com')->value('manager_email'))->toBe('lead@contoso.com');
+
+    Http::assertSent(function ($request) {
+        return $request->method() === 'POST'
+            && str_contains($request->url(), '/oauth2/v2.0/token')
+            && $request['grant_type'] === 'client_credentials'
+            && $request['client_secret'] === 'secret-1';
+    });
+});
+
+it('keeps the stored manager when graph refuses the lookup', function () {
+    ssoRoutes();
+    $key = ssoKey();
+    IdentityProvider::query()->create([
+        'name' => 'Contoso',
+        'slug' => 'contoso',
+        'domains' => ['contoso.com'],
+        'issuer' => 'https://login.microsoftonline.com/tenant-id/v2.0',
+        'client_id' => 'client-1',
+        'client_secret' => 'secret-1',
+        'is_active' => true,
+        'sync_manager' => true,
+    ]);
+    AuthIdentity::query()->create([
+        'email' => 'ada@contoso.com',
+        'method' => 'sso',
+        'subject' => 'ada-subject',
+        'manager_email' => 'lead@contoso.com',
+    ]);
+    $claims = [
+        'iss' => 'https://login.microsoftonline.com/tenant-id/v2.0',
+        'aud' => 'client-1',
+        'nonce' => 'nonce-1',
+        'exp' => time() + 600,
+        'sub' => 'ada-subject',
+        'oid' => 'ada-object',
+        'email' => 'ada@contoso.com',
+        'name' => 'Ada Lovelace',
+    ];
+
+    Http::fake([
+        'https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration' => Http::response([
+            'issuer' => 'https://login.microsoftonline.com/tenant-id/v2.0',
+            'authorization_endpoint' => 'https://login.example.test/authorize',
+            'token_endpoint' => 'https://login.example.test/token',
+            'jwks_uri' => 'https://login.example.test/jwks',
+        ]),
+        'https://login.example.test/token' => Http::response(['id_token' => ssoJwt($key['key'], $claims)]),
+        'https://login.example.test/jwks' => Http::response(['keys' => [[
+            'kty' => 'RSA',
+            'kid' => 'test-key',
+            'n' => $key['n'],
+            'e' => $key['e'],
+        ]]]),
+        'https://login.microsoftonline.com/tenant-id/oauth2/v2.0/token' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ]),
+        'https://graph.microsoft.com/v1.0/users/ada-object/manager*' => Http::response([
+            'error' => ['message' => 'secret-1 was rejected'],
+        ], 403),
+    ]);
+
+    $this->withSession([
+        'laravel-ticket.sso' => [
+            'state' => 'state-1',
+            'nonce' => 'nonce-1',
+            'verifier' => 'verifier-1',
+            'provider' => 'contoso',
+            'email' => 'ada@contoso.com',
+        ],
+    ])->get('/desk/login/sso/contoso/callback?code=auth-code&state=state-1')
+        ->assertRedirect(route('laravel-ticket.desk'));
+
+    expect(AuthIdentity::query()->where('email', 'ada@contoso.com')->value('manager_email'))->toBe('lead@contoso.com');
+    $this->get(route('laravel-ticket.desk'))->assertOk()->assertDontSee('secret-1');
 });

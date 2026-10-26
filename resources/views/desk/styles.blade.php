@@ -107,6 +107,8 @@
         white-space: nowrap;
     }
 
+    .rail-team a { white-space: normal; line-height: 1.3; }
+
     .rail-nav a:hover { color: #f6f1e6; }
 
     .rail-nav a.is-current {
@@ -524,6 +526,16 @@
     .plain li .muted,
     .issuer { display: block; margin-top: 2px; overflow-wrap: anywhere; }
 
+    .group-block {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
+        margin-top: 8px;
+    }
+
+    .group-block button { margin: 0; }
+
     .jump {
         display: flex;
         flex-wrap: wrap;
@@ -599,6 +611,7 @@
             grid-template-areas:
                 "brand foot"
                 "work work"
+                "team team"
                 "admin admin";
             gap: 8px 12px;
             padding: 12px 12px 10px;
@@ -607,6 +620,8 @@
         .rail > div:first-child { grid-area: brand; }
 
         .rail-work { grid-area: work; }
+
+        .rail-team { grid-area: team; }
 
         .rail-admin { grid-area: admin; }
 

@@ -63,6 +63,7 @@ class SetupController
             'name' => ['required', 'string'],
             'slug' => ['nullable', 'string'],
             'department_id' => ['required', 'integer'],
+            'hide_from_managers' => ['nullable', 'boolean'],
         ]);
 
         $departmentId = $this->departmentId($actor, (int) $data['department_id']);
@@ -71,9 +72,31 @@ class SetupController
             'name' => $data['name'],
             'slug' => $this->slug($data['slug'] ?? null, $data['name']),
             'department_id' => $departmentId,
+            'hide_from_managers' => $request->boolean('hide_from_managers'),
         ]);
 
         return back()->with('status', 'Support group saved.');
+    }
+
+    public function updateGroupManagers(Request $request, int $group): RedirectResponse
+    {
+        $actor = $this->agent($request);
+        $record = AssignmentGroup::query()->find($group);
+
+        if (! $record instanceof AssignmentGroup) {
+            abort(404);
+        }
+
+        if ($record->department_id) {
+            $this->departmentId($actor, (int) $record->department_id);
+        } elseif (! DeskAccess::manages($actor)) {
+            abort(403);
+        }
+
+        $record->hide_from_managers = $request->boolean('hide_from_managers');
+        $record->save();
+
+        return back()->with('status', 'Support group updated.');
     }
 
     public function storeType(Request $request): RedirectResponse
@@ -209,6 +232,7 @@ class SetupController
             'issuer' => ['required', 'url', 'starts_with:https://'],
             'client_id' => ['required', 'string'],
             'client_secret' => ['required', 'string'],
+            'sync_manager' => ['nullable', 'boolean'],
         ]);
 
         $provider = new IdentityProvider([
@@ -219,6 +243,7 @@ class SetupController
             'client_id' => $data['client_id'],
             'client_secret' => $data['client_secret'],
             'is_active' => true,
+            'sync_manager' => $request->boolean('sync_manager'),
         ]);
 
         try {

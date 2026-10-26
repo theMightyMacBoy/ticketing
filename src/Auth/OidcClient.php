@@ -19,6 +19,7 @@ class OidcClient
     public function __construct(
         private OidcToken $tokens,
         private AccountProvisioner $accounts,
+        private ManagerSync $managers,
     ) {}
 
     public function redirect(Request $request, IdentityProvider $provider, string $email): RedirectResponse
@@ -111,6 +112,7 @@ class OidcClient
         }
 
         $this->link($provider, $email, $subject);
+        $this->managers->sync($provider, $email, $claims);
         $user = $this->accounts->findOrCreate($email, $this->displayName($claims, $email));
 
         if (! $user instanceof Authenticatable) {

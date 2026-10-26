@@ -50,6 +50,14 @@
                         @if (optional($group->department)->name)
                             <span class="muted">{{ $group->department->name }}</span>
                         @endif
+                        <form class="group-block" method="post" action="{{ route('laravel-ticket.setup.groups.managers', $group) }}">
+                            @csrf
+                            <label class="check" for="block-{{ $group->id }}">
+                                <input id="block-{{ $group->id }}" type="checkbox" name="hide_from_managers" value="1" @checked($group->hide_from_managers)>
+                                <span>Block the requester's manager</span>
+                            </label>
+                            <button class="quiet" type="submit">Save</button>
+                        </form>
                     </li>
                 @empty
                     <li class="muted">None yet.</li>
@@ -68,6 +76,11 @@
                     @endforeach
                 </select>
             </label>
+            <label class="check">
+                <input type="checkbox" name="hide_from_managers" value="1">
+                <span>Block the requester's manager</span>
+            </label>
+            <p class="hint">Tickets on this group stay out of the team queues. Use it for a queue such as HR, where the employee's manager should not read the case.</p>
             <button type="submit">Add group</button>
         </form>
     </section>
@@ -227,7 +240,7 @@
                 @forelse ($providers as $provider)
                     <li>
                         {{ $provider->name }}
-                        <span class="muted">{{ implode(', ', $provider->domains) }}</span>
+                        <span class="muted">{{ implode(', ', $provider->domains) }}@if ($provider->sync_manager) · Manager sync @endif</span>
                         <span class="issuer muted">{{ $provider->issuer }}</span>
                     </li>
                 @empty
@@ -252,6 +265,11 @@
             <label for="provider-client-secret">Client secret
                 <input id="provider-client-secret" name="client_secret" type="password" required autocomplete="new-password">
             </label>
+            <label class="check">
+                <input type="checkbox" name="sync_manager" value="1" checked>
+                <span>Sync each person's manager from Microsoft Graph</span>
+            </label>
+            <p class="hint">The sign-in app needs application permission User.Read.All. An ID token that already names the manager is stored either way. Sign-in still completes if Graph refuses the lookup.</p>
             <button type="submit">Add sign-in provider</button>
         </form>
     </section>

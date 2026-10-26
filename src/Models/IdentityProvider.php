@@ -16,6 +16,7 @@ use InvalidArgumentException;
  * @property string $client_id
  * @property string $client_secret
  * @property bool $is_active
+ * @property bool $sync_manager
  */
 class IdentityProvider extends Model
 {
@@ -29,6 +30,7 @@ class IdentityProvider extends Model
         'client_id',
         'client_secret',
         'is_active',
+        'sync_manager',
     ];
 
     protected $hidden = [
@@ -39,6 +41,7 @@ class IdentityProvider extends Model
         'domains' => 'array',
         'client_secret' => 'encrypted',
         'is_active' => 'boolean',
+        'sync_manager' => 'boolean',
     ];
 
     protected static function booted(): void

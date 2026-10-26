@@ -49,6 +49,10 @@ class TicketVisibility
             return true;
         }
 
+        if (TeamRoster::supervises($user, $ticket)) {
+            return true;
+        }
+
         return $ticket->approvals()
             ->where('approver_id', $id)
             ->where('status', ApprovalStatus::PENDING->value)

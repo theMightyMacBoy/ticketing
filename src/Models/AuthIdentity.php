@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $method
  * @property int|null $identity_provider_id
  * @property string|null $subject
+ * @property string|null $manager_email
  */
 class AuthIdentity extends Model
 {
@@ -21,12 +22,18 @@ class AuthIdentity extends Model
         'method',
         'identity_provider_id',
         'subject',
+        'manager_email',
     ];
 
     protected static function booted(): void
     {
         static::saving(function (AuthIdentity $identity) {
             $identity->email = strtolower(trim($identity->email));
+
+            if (is_string($identity->manager_email)) {
+                $manager = strtolower(trim($identity->manager_email));
+                $identity->manager_email = $manager === '' ? null : $manager;
+            }
         });
     }
 

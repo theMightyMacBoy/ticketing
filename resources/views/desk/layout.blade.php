@@ -17,6 +17,10 @@
 
     if (request()->routeIs('laravel-ticket.catalog')) {
         $deskNav = 'catalog';
+    } elseif (request()->routeIs('laravel-ticket.team.open')) {
+        $deskNav = 'team-open';
+    } elseif (request()->routeIs('laravel-ticket.team')) {
+        $deskNav = 'team';
     } elseif (request()->routeIs('laravel-ticket.portal', 'laravel-ticket.portal.*')) {
         $deskNav = 'portal';
     } elseif (request()->routeIs('laravel-ticket.setup', 'laravel-ticket.setup.*')) {
@@ -38,6 +42,11 @@
             <a href="{{ route('laravel-ticket.desk') }}" @if ($deskNav === 'queue') class="is-current" aria-current="page" @endif>Queue</a>
             <a href="{{ route('laravel-ticket.catalog') }}" @if ($deskNav === 'catalog') class="is-current" aria-current="page" @endif>Catalog</a>
             <a href="{{ route('laravel-ticket.portal') }}" @if ($deskNav === 'portal') class="is-current" aria-current="page" @endif>My requests</a>
+        </nav>
+        <nav class="rail-nav rail-team" aria-label="Team">
+            <p class="rail-label">Team</p>
+            <a href="{{ route('laravel-ticket.team') }}" @if ($deskNav === 'team') class="is-current" aria-current="page" @endif>Tickets opened by my team</a>
+            <a href="{{ route('laravel-ticket.team.open') }}" @if ($deskNav === 'team-open') class="is-current" aria-current="page" @endif>Open tickets by my team</a>
         </nav>
         @if ($canConfigure)
             <nav class="rail-nav rail-admin" aria-label="Administration">

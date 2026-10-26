@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        $providers = config('laravel_ticket.table_names.identity_providers', 'identity_providers');
+        $identities = config('laravel_ticket.table_names.auth_identities', 'auth_identities');
+
+        Schema::table($providers, function (Blueprint $table) {
+            $table->boolean('sync_manager')->default(false);
+        });
+
+        Schema::table($identities, function (Blueprint $table) {
+            $table->string('manager_email')->nullable()->index();
+        });
+    }
+};
