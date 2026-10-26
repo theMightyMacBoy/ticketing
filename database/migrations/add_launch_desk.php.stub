@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        $tickets = config('laravel_ticket.table_names.tickets', 'tickets');
+        $mailboxes = config('laravel_ticket.table_names.mailboxes', 'mailboxes');
+        $departments = config('laravel_ticket.table_names.departments', 'departments');
+        $profiles = config('laravel_ticket.table_names.staff_profiles', 'staff_profiles');
+
+        Schema::table($tickets, function (Blueprint $table) {
+            $table->boolean('is_confidential')->default(false);
+        });
+
+        Schema::table($mailboxes, function (Blueprint $table) {
+            $table->text('last_error')->nullable();
+            $table->timestamp('last_error_at')->nullable();
+        });
+
+        Schema::create($profiles, function (Blueprint $table) use ($departments) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable()->index();
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('employee_number')->nullable();
+            $table->boolean('is_agent')->default(false);
+            $table->timestamps();
+        });
+    }
+};

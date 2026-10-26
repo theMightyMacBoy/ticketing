@@ -18,30 +18,60 @@ class GraphMailboxReader implements MailboxReader
      */
     public function fetch(Mailbox $mailbox): array
     {
-        $response = $this->graph($mailbox)->withHeaders([
-            'Prefer' => 'outlook.body-content-type="text"',
-        ])->get($this->inboxUrl($mailbox), [
-            '$top' => (int) config('laravel_ticket.mail.fetch_limit', 25),
+        $limit = max(1, (int) config('laravel_ticket.mail.fetch_limit', 100));
+        $url = $this->inboxUrl($mailbox);
+        $query = [
+            '$top' => min(50, $limit),
             '$select' => 'id,subject,body,from,receivedDateTime,internetMessageId,internetMessageHeaders,isRead',
             '$filter' => 'isRead eq false',
-        ]);
-
-        $this->guard($response, "Graph could not read the inbox for [{$mailbox->address}]");
-
-        $items = $response->json('value');
-
-        if (! is_array($items)) {
-            return [];
-        }
-
+        ];
+        $seen = [];
+        $droppedFilter = false;
         $messages = [];
 
-        foreach ($items as $item) {
-            if (! is_array($item) || ! is_string($item['id'] ?? null)) {
+        while (is_string($url) && $url !== '' && count($messages) < $limit) {
+            if (isset($seen[$url])) {
+                break;
+            }
+
+            $request = $this->graph($mailbox)->withHeaders([
+                'Prefer' => 'outlook.body-content-type="text"',
+            ]);
+            $response = $query === [] ? $request->get($url) : $request->get($url, $query);
+
+            if ($response->status() === 400 && array_key_exists('$filter', $query) && ! $droppedFilter) {
+                unset($query['$filter']);
+                $droppedFilter = true;
+
                 continue;
             }
 
-            $messages[] = $this->toEmail($item);
+            $this->guard($response, "Graph could not read the inbox for [{$mailbox->address}]");
+            $seen[$url] = true;
+            $droppedFilter = false;
+
+            $items = $response->json('value');
+
+            if (! is_array($items) || $items === []) {
+                break;
+            }
+
+            foreach ($items as $item) {
+                if (count($messages) >= $limit || ! is_array($item) || ! is_string($item['id'] ?? null)) {
+                    continue;
+                }
+
+                if (($item['isRead'] ?? false) === true) {
+                    continue;
+                }
+
+                $messages[] = $this->toEmail($item);
+            }
+
+            $body = $response->json();
+            $next = is_array($body) ? ($body['@odata.nextLink'] ?? null) : null;
+            $url = is_string($next) && $next !== '' ? $next : null;
+            $query = [];
         }
 
         usort($messages, fn (InboundEmail $left, InboundEmail $right) => $left->receivedAt <=> $right->receivedAt);

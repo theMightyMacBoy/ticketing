@@ -16,6 +16,7 @@ use Coderflex\LaravelTicket\Models\Organization;
 use Coderflex\LaravelTicket\Models\ResolutionCode;
 use Coderflex\LaravelTicket\Models\Service;
 use Coderflex\LaravelTicket\Models\SlaPolicy;
+use Coderflex\LaravelTicket\Models\StaffProfile;
 use Coderflex\LaravelTicket\Models\Ticket;
 use Coderflex\LaravelTicket\Models\TicketActivity;
 use Coderflex\LaravelTicket\Models\TicketLink;
@@ -83,6 +84,7 @@ return [
         'department_user' => 'department_user',
         'ticket_types' => 'ticket_types',
         'business_calendars' => 'business_calendars',
+        'staff_profiles' => 'staff_profiles',
     ],
 
     'models' => [
@@ -108,6 +110,7 @@ return [
         'department' => Department::class,
         'ticket_type' => TicketTypeDefinition::class,
         'business_calendar' => BusinessCalendar::class,
+        'staff_profile' => StaffProfile::class,
     ],
 
     /*
@@ -203,8 +206,9 @@ return [
     'mail' => [
         'schedule' => true,
         'mailer' => null,
-        'fetch_limit' => 25,
+        'fetch_limit' => 100,
         'purge_limit' => 2000,
+        'alert_to' => env('TICKET_MAIL_ALERT_TO'),
         'system_user_id' => null,
         'resolve_sender' => null,
         'token_url' => 'https://login.microsoftonline.com/%s/oauth2/v2.0/token',
@@ -215,5 +219,43 @@ return [
             'client_secret' => env('TICKET_GRAPH_CLIENT_SECRET'),
             'scope' => 'https://graph.microsoft.com/.default',
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Desk notifications
+    |--------------------------------------------------------------------------
+    |
+    | Assignment, approval, SLA breach, and the acknowledgement that a new
+    | ticket was opened are emailed when this is true. A public agent reply
+    | is still sent by the ticket mailer.
+    |
+    */
+    'notifications' => [
+        'mail' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Demo environment
+    |--------------------------------------------------------------------------
+    |
+    | seed inserts departments, groups, inactive mailboxes, and catalog rows
+    | during migration. Users and sample tickets are created by
+    | tickets:seed-demo, because the users table may not exist yet.
+    | login exposes /desk/login for the demo password. Leave both false
+    | outside a demo.
+    |
+    */
+    'demo' => [
+        'seed' => env('TICKET_DEMO_SEED', false),
+        'password' => env('TICKET_DEMO_PASSWORD', 'password'),
+        'login' => env('TICKET_DEMO_LOGIN', false),
+    ],
+
+    'routes' => [
+        'desk' => 'desk',
+        'portal' => 'portal',
+        'middleware' => ['web', 'auth'],
     ],
 ];

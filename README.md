@@ -23,6 +23,7 @@
   - [Ticket Scopes](#ticket-scopes)
   - [Category \& Label Scopes](#category--label-scopes)
 - [Handling File Upload](#handling-file-upload)
+- [Desk and portal](#desk-and-portal)
 - [Testing](#testing)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
@@ -31,9 +32,9 @@
 - [License](#license)
 
 ## Introduction
-Laravel Ticket is the domain for an IT service desk. It stores incidents, service requests, problems, and changes, and it enforces the workflow around them: public ticket numbers, impact and urgency, SLA clocks, queues, approvals, audit history, and a service catalog.
+Laravel Ticket is a multi-department service desk. It stores incidents, service requests, problems, and changes, and it serves an agent desk and a requester portal. Shared Exchange Online mailboxes open tickets. Public replies go out through the application's SMTP relay.
 
-This package does not render a portal or send mail. Your application owns the screens and the notification delivery. The models raise events (`TicketOpened`, `TicketStatusChanged`, `TicketAssigned`, `TicketSlaBreached`, `ApprovalRequested`, `ApprovalDecided`) so you can hook mail, Slack, or a webhook in a listener. Schedule `php artisan tickets:evaluate-slas` every minute to flag breaches while a ticket is still open.
+The models raise events (`TicketOpened`, `TicketStatusChanged`, `TicketAssigned`, `TicketSlaBreached`, `ApprovalRequested`, `ApprovalDecided`) so you can add Slack or a webhook beside the built-in mail. Schedule `php artisan tickets:evaluate-slas` every minute to flag breaches while a ticket is still open. `tickets:fetch-mail` and `tickets:purge-mail` run on their own schedule when `laravel_ticket.mail.schedule` is true.
 
 ## Installation
 
@@ -397,7 +398,7 @@ Publish and run `add_support_mailboxes` after the enterprise migration.
 
 ## Departments
 
-A department is the boundary between IT, HR, facilities, and any other desk that shares this package. Groups, mailboxes, categories, services, and SLA policies can belong to one. An agent added with `addAgent()` can see and update that department's tickets. Someone who implements `CanManageTickets` can still see every department.
+A department is the boundary between IT, HR, facilities, and any other desk that shares this package. Groups, mailboxes, categories, services, and SLA policies can belong to one. An agent added with `addAgent()` can see and update that department's tickets, including confidential ones. Someone who implements `CanManageTickets` can see every non-confidential ticket.
 
 ```php
 use Coderflex\LaravelTicket\Models\Department;
@@ -431,6 +432,34 @@ $onboarding->transferTo($desktopGroup);
 ```
 
 `ServiceDeskReport::forDepartment($hr)` counts only that department. Publish and run `add_departments` after the mailbox migration.
+
+A platform admin who implements `CanManageTickets` can see every non-confidential ticket. A confidential ticket stays with the requester, the assignee, watchers, the support group, that department's agents, and a pending approver.
+
+## Desk and portal
+
+Agents work at `/desk`. Requesters use `/portal`. Both routes use the `web` and `auth` middleware. Change `routes.desk`, `routes.portal`, and `routes.middleware` in the published config.
+
+The queue searches title, number, requester, and the opening message. On a ticket, an agent can send a public reply, leave an internal note, assign by email, transfer to a department or group, change status, and approve. A requester sees only their own tickets, opens a catalog item, and replies in the portal. Setup and the directory are limited to department agents and platform admins.
+
+```bash
+php artisan tickets:seed-demo
+```
+
+That command creates IT, HR, and Facilities, three inactive mailboxes (`help@example.com`, `hr@example.com`, `facilities@example.com`), catalog items, and these accounts. The password is `password`.
+
+- `ada@example.com` files the sample tickets
+- `it.agent@example.com`, `hr.agent@example.com`, and `facilities.agent@example.com` work their queues
+- `manager@example.com` is a directory contact
+
+The sample tickets are "VPN is down for Ada", the confidential HR case "Payroll question", and "Badge for the west door".
+
+Set `TICKET_DEMO_SEED=true` before `migrate` to insert the departments, groups, calendars, catalog, and inactive mailboxes during the migration. The migration does not create users, because the users table may not exist yet. Set `TICKET_DEMO_LOGIN=true` to expose `/desk/login` for the demo password. Leave both false outside a demo.
+
+When `laravel_ticket.notifications.mail` is true, opening a ticket emails the requester the ticket number. Assignment, an approval request, and an SLA breach are emailed too. A failed mailbox fetch stores `last_error` and emails `TICKET_MAIL_ALERT_TO`. Fetch follows Graph pages up to `mail.fetch_limit` (100) and, if Graph rejects `isRead eq false` with HTTP 400, retries that page once without the filter.
+
+`GET /desk/privacy/export` and `POST /desk/privacy/erase` export or erase tickets for one email. A platform admin does not erase another department's confidential tickets. The requester can erase their own, including confidential cases. Ticket numbers are kept. The body becomes "Erased request" and replies become `[erased]`.
+
+Publish and run `add_launch_desk` after `add_departments`. `seed_demo_desk` is the migration that honors `TICKET_DEMO_SEED`.
 
 ## Testing
 

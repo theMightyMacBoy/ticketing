@@ -49,6 +49,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $custom_attributes
  * @property int|null $mailbox_id
  * @property string|null $requester_email
+ * @property bool $is_confidential
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -94,6 +95,7 @@ class Ticket extends Model
         'resolution_code_id',
         'mailbox_id',
         'requester_email',
+        'is_confidential',
         'custom_attributes',
     ];
 
@@ -101,6 +103,7 @@ class Ticket extends Model
         'is_resolved' => 'boolean',
         'is_locked' => 'boolean',
         'is_major' => 'boolean',
+        'is_confidential' => 'boolean',
         'custom_attributes' => 'array',
         'response_due_at' => 'datetime',
         'resolution_due_at' => 'datetime',

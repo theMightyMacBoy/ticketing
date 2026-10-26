@@ -2,10 +2,9 @@
 
 namespace Coderflex\LaravelTicket\Scopes;
 
-use Coderflex\LaravelTicket\Contracts\CanManageTickets;
+use Coderflex\LaravelTicket\Access\TicketVisibility;
 use Coderflex\LaravelTicket\Enums\Priority;
 use Coderflex\LaravelTicket\Enums\Status;
-use Coderflex\LaravelTicket\Models\Department;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -159,31 +158,48 @@ trait TicketScope
 
     /**
      * Tickets the user is allowed to see: own, affected, assigned, watched, or queued.
+     * A platform admin still cannot see a confidential ticket they are not involved in.
      */
     public function scopeVisibleTo(Builder $builder, Model $user): Builder
     {
-        if ($user instanceof CanManageTickets && $user->canManageTickets()) {
+        if (TicketVisibility::manages($user)) {
+            return $builder->where(function (Builder $query) use ($user) {
+                $query->where($query->qualifyColumn('is_confidential'), false)
+                    ->orWhere(function (Builder $inner) use ($user) {
+                        TicketVisibility::apply($inner, $user);
+                    });
+            });
+        }
+
+        return $builder->where(function (Builder $query) use ($user) {
+            TicketVisibility::apply($query, $user);
+        });
+    }
+
+    public function scopeSearch(Builder $builder, string $term): Builder
+    {
+        $term = trim($term);
+
+        if ($term === '') {
             return $builder;
         }
 
-        $callback = config('laravel_ticket.agents.callback');
+        $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
 
-        if (is_callable($callback) && $callback($user)) {
-            return $builder;
-        }
+        return $builder->where(function (Builder $query) use ($like) {
+            $first = true;
 
-        $id = $user->getKey();
-        $departmentIds = Department::agentDepartmentIds($user);
+            foreach (['ticket_number', 'title', 'requester_email', 'message'] as $column) {
+                $sql = $query->qualifyColumn($column).' like ? escape ?';
 
-        return $builder->where(function (Builder $query) use ($id, $departmentIds) {
-            $query->where($query->qualifyColumn('user_id'), $id)
-                ->orWhere($query->qualifyColumn('affected_user_id'), $id)
-                ->orWhere($query->qualifyColumn('assigned_to'), $id)
-                ->orWhereHas('watchers', fn (Builder $watchers) => $watchers->whereKey($id))
-                ->orWhereHas('assignmentGroup.members', fn (Builder $members) => $members->whereKey($id));
+                if ($first) {
+                    $query->whereRaw($sql, [$like, '\\']);
+                    $first = false;
 
-            if ($departmentIds !== []) {
-                $query->orWhereIn($query->qualifyColumn('department_id'), $departmentIds);
+                    continue;
+                }
+
+                $query->orWhereRaw($sql, [$like, '\\']);
             }
         });
     }

@@ -4,6 +4,7 @@ All notable changes to `laravel-ticket` will be documented in this file.
 
 ## Unreleased
 
+- Add an agent desk and requester portal: queue search, public replies, internal notes, assignment, transfer, approval, catalog requests, setup, a staff directory, and requester export and erasure. Confidential tickets are hidden from platform admins who are not involved. Opening a ticket, assignment, approval, and SLA breach can be emailed. A failed mailbox fetch records `last_error` and can page `TICKET_MAIL_ALERT_TO`. Graph fetch follows extra pages and retries when the unread filter is rejected. `tickets:seed-demo` loads a demo IT, HR, and Facilities desk. Set `TICKET_DEMO_SEED=true` to insert that organization during migration.
 - Add an IT service-desk domain: ticket types and public numbers, impact × urgency priority, status workflow, SLA clocks with a business calendar, assignment groups, organizations, approvals, internal notes, links, work logs, attachments, a service catalog, custom fields, audit history, queue visibility, and service-desk reporting.
 - Add shared Exchange Online mailboxes. Graph application auth fetches unread mail. New mail opens on the mailbox's primary support group, and replies stay on the parent ticket. Outbound replies go through the app's SMTP mailer as the shared address.
 - Optional per-mailbox retention deletes read inbox mail older than a set number of days. `tickets:purge-mail` runs at 00:00 UTC. Unread mail is kept.

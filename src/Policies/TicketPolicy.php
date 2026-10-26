@@ -2,7 +2,7 @@
 
 namespace Coderflex\LaravelTicket\Policies;
 
-use Coderflex\LaravelTicket\Contracts\CanManageTickets;
+use Coderflex\LaravelTicket\Access\TicketVisibility;
 use Coderflex\LaravelTicket\Enums\ApprovalStatus;
 use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\Ticket;
@@ -12,31 +12,20 @@ class TicketPolicy
 {
     public function view(Model $user, Ticket $ticket): bool
     {
-        if ($this->manages($user)) {
-            return true;
+        if ($this->blocked($user, $ticket)) {
+            return false;
         }
 
-        $id = (int) $user->getKey();
-        $involved = array_filter([
-            (int) $ticket->user_id,
-            (int) $ticket->affected_user_id,
-            (int) $ticket->assigned_to,
-        ]);
-
-        if (in_array($id, $involved, true)) {
-            return true;
-        }
-
-        if ($ticket->watchers()->whereKey($id)->exists()) {
-            return true;
-        }
-
-        return $this->inGroup($user, $ticket) || $this->inDepartment($user, $ticket);
+        return TicketVisibility::manages($user) || TicketVisibility::engaged($user, $ticket);
     }
 
     public function update(Model $user, Ticket $ticket): bool
     {
-        if ($this->manages($user)) {
+        if ($this->blocked($user, $ticket)) {
+            return false;
+        }
+
+        if (TicketVisibility::manages($user)) {
             return true;
         }
 
@@ -54,12 +43,20 @@ class TicketPolicy
 
     public function delete(Model $user, Ticket $ticket): bool
     {
-        return $this->manages($user);
+        if ($this->blocked($user, $ticket)) {
+            return false;
+        }
+
+        return TicketVisibility::manages($user);
     }
 
     public function approve(Model $user, Ticket $ticket): bool
     {
-        if ($this->manages($user)) {
+        if ($this->blocked($user, $ticket)) {
+            return false;
+        }
+
+        if (TicketVisibility::manages($user)) {
             return true;
         }
 
@@ -69,15 +66,9 @@ class TicketPolicy
             ->exists();
     }
 
-    private function manages(Model $user): bool
+    private function blocked(Model $user, Ticket $ticket): bool
     {
-        $callback = config('laravel_ticket.agents.callback');
-
-        if (is_callable($callback) && $callback($user)) {
-            return true;
-        }
-
-        return $user instanceof CanManageTickets && $user->canManageTickets();
+        return (bool) $ticket->is_confidential && ! TicketVisibility::engaged($user, $ticket);
     }
 
     private function inGroup(Model $user, Ticket $ticket): bool

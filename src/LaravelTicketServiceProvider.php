@@ -5,12 +5,19 @@ namespace Coderflex\LaravelTicket;
 use Coderflex\LaravelTicket\Commands\EvaluateSlasCommand;
 use Coderflex\LaravelTicket\Commands\FetchMailCommand;
 use Coderflex\LaravelTicket\Commands\PurgeMailCommand;
+use Coderflex\LaravelTicket\Commands\SeedDemoCommand;
+use Coderflex\LaravelTicket\Events\ApprovalRequested;
+use Coderflex\LaravelTicket\Events\TicketAssigned;
+use Coderflex\LaravelTicket\Events\TicketOpened;
+use Coderflex\LaravelTicket\Events\TicketSlaBreached;
 use Coderflex\LaravelTicket\Mail\GraphMailboxReader;
 use Coderflex\LaravelTicket\Mail\MailboxReader;
+use Coderflex\LaravelTicket\Notifications\DeskNotifier;
 use Coderflex\LaravelTicket\Observers\MessageObserver;
 use Coderflex\LaravelTicket\Observers\TicketObserver;
 use Coderflex\LaravelTicket\Policies\TicketPolicy;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -28,10 +35,12 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
             ->name('laravel-ticket')
             ->hasConfigFile('laravel_ticket')
             ->hasViews('laravel-ticket')
+            ->hasRoutes('desk')
             ->hasCommands(
                 EvaluateSlasCommand::class,
                 FetchMailCommand::class,
                 PurgeMailCommand::class,
+                SeedDemoCommand::class,
             )
             ->hasMigrations(
                 'create_tickets_table',
@@ -44,6 +53,8 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
                 'install_enterprise_itsm',
                 'add_support_mailboxes',
                 'add_departments',
+                'add_launch_desk',
+                'seed_demo_desk',
             );
     }
 
@@ -61,6 +72,11 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
 
         $ticket::observe(TicketObserver::class);
         $message::observe(MessageObserver::class);
+
+        Event::listen(TicketOpened::class, [DeskNotifier::class, 'opened']);
+        Event::listen(TicketAssigned::class, [DeskNotifier::class, 'assigned']);
+        Event::listen(ApprovalRequested::class, [DeskNotifier::class, 'approval']);
+        Event::listen(TicketSlaBreached::class, [DeskNotifier::class, 'breached']);
 
         $this->app->booted(function () {
             if (! config('laravel_ticket.mail.schedule')) {

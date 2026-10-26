@@ -4,6 +4,7 @@ namespace Coderflex\LaravelTicket\Commands;
 
 use Coderflex\LaravelTicket\Mail\MailboxIntake;
 use Coderflex\LaravelTicket\Models\Mailbox;
+use Coderflex\LaravelTicket\Notifications\DeskNotifier;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -13,7 +14,7 @@ class FetchMailCommand extends Command
 
     protected $description = 'Fetch unread Exchange Online mail and open or update tickets';
 
-    public function handle(MailboxIntake $intake): int
+    public function handle(MailboxIntake $intake, DeskNotifier $notifier): int
     {
         $query = Mailbox::query()->where('is_active', true);
         $filter = $this->option('mailbox');
@@ -30,12 +31,25 @@ class FetchMailCommand extends Command
 
         $failed = 0;
 
-        $query->orderBy('id')->each(function (Mailbox $mailbox) use ($intake, &$failed) {
+        $query->orderBy('id')->each(function (Mailbox $mailbox) use ($intake, $notifier, &$failed) {
             try {
                 $count = $intake->ingest($mailbox);
+
+                if ($mailbox->last_error !== null) {
+                    $mailbox->forceFill([
+                        'last_error' => null,
+                        'last_error_at' => null,
+                    ])->save();
+                }
+
                 $this->info("{$mailbox->address}: {$count} messages.");
             } catch (Throwable $exception) {
                 $failed++;
+                $mailbox->forceFill([
+                    'last_error' => $exception->getMessage(),
+                    'last_error_at' => now(),
+                ])->save();
+                $notifier->mailboxFailed($mailbox, $exception);
                 $this->error("{$mailbox->address}: {$exception->getMessage()}");
             }
         });

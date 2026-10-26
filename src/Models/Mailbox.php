@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Cache;
  * @property int|null $department_id
  * @property int|null $delete_read_after_days
  * @property Carbon|null $last_synced_at
+ * @property string|null $last_error
+ * @property Carbon|null $last_error_at
  */
 class Mailbox extends Model
 {
@@ -45,6 +47,7 @@ class Mailbox extends Model
         'is_active' => 'boolean',
         'delete_read_after_days' => 'integer',
         'last_synced_at' => 'datetime',
+        'last_error_at' => 'datetime',
     ];
 
     protected static function booted(): void

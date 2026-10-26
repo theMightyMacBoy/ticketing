@@ -32,6 +32,9 @@ class TestCase extends Orchestra
         config()->set('database.default', 'testing');
         config()->set('auth.providers.users.model', User::class);
         config()->set('laravel_ticket.mail.schedule', false);
+        config()->set('laravel_ticket.notifications.mail', false);
+        config()->set('laravel_ticket.demo.seed', false);
+        config()->set('laravel_ticket.demo.login', false);
 
         $migrations = [
             include __DIR__.'/../database/migrations/create_tickets_table.php.stub',
@@ -49,6 +52,8 @@ class TestCase extends Orchestra
             include __DIR__.'/../database/migrations/install_enterprise_itsm.php.stub',
             include __DIR__.'/../database/migrations/add_support_mailboxes.php.stub',
             include __DIR__.'/../database/migrations/add_departments.php.stub',
+            include __DIR__.'/../database/migrations/add_launch_desk.php.stub',
+            include __DIR__.'/../database/migrations/seed_demo_desk.php.stub',
         ];
 
         collect($migrations)->each(fn ($migration) => $migration->up());
