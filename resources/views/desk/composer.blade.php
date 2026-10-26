@@ -45,6 +45,12 @@
                         area.value = sheet.innerHTML;
                     }
 
+                    editor.querySelectorAll('button').forEach(function (button) {
+                        button.addEventListener('mousedown', function (event) {
+                            event.preventDefault();
+                        });
+                    });
+
                     editor.querySelectorAll('[data-cmd]').forEach(function (button) {
                         button.addEventListener('click', function () {
                             var command = button.getAttribute('data-cmd');
@@ -118,6 +124,23 @@
                             }
 
                             sheet.focus();
+                            var selection = window.getSelection();
+                            var range = document.createRange();
+
+                            if (!selection) {
+                                throw new Error('upload');
+                            }
+
+                            if (selection.rangeCount && sheet.contains(selection.anchorNode)) {
+                                range = selection.getRangeAt(0);
+                                range.collapse(false);
+                            } else {
+                                range.selectNodeContents(sheet);
+                                range.collapse(false);
+                            }
+
+                            selection.removeAllRanges();
+                            selection.addRange(range);
                             document.execCommand('insertHTML', false, '<img src="' + src + '" alt="' + alt + '">');
                             sync();
                         }).catch(function () {
