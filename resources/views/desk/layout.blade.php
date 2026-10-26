@@ -63,6 +63,10 @@
             @if ($accountEmail !== '')
                 <p class="who-mail">{{ $accountEmail }}</p>
             @endif
+            <button class="theme-toggle" type="button" data-theme-toggle>
+                <span class="when-light">Dark mode</span>
+                <span class="when-dark">Light mode</span>
+            </button>
             @if (\Illuminate\Support\Facades\Route::has('laravel-ticket.logout'))
                 <form method="post" action="{{ route('laravel-ticket.logout') }}">
                     @csrf

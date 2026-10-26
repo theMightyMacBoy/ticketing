@@ -16,6 +16,12 @@
     </aside>
     <main class="gate-main" id="content">
         <div class="gate-panel">
+            <div class="theme-row">
+                <button class="quiet theme-toggle" type="button" data-theme-toggle>
+                    <span class="when-light">Dark mode</span>
+                    <span class="when-dark">Light mode</span>
+                </button>
+            </div>
             @if ($errors->any())
                 <div class="flash is-error" role="alert">
                     <ul>

@@ -399,6 +399,8 @@ it('renders the desk, portal, and sign-in screens as one console', function () {
         ->assertSee('VPN is down for Ada')
         ->assertSee('Administration')
         ->assertSee('it.agent@example.com')
+        ->assertSee('data-theme-toggle', false)
+        ->assertSee('Dark mode')
         ->assertDontSee('Georgia', false);
 
     $this->actingAs($agent)
@@ -433,6 +435,7 @@ it('renders the desk, portal, and sign-in screens as one console', function () {
         ->assertOk()
         ->assertSee('class="gate-split"', false)
         ->assertSee('Company addresses continue at the identity provider')
+        ->assertSee('Dark mode')
         ->assertDontSee('name="password"', false);
 
     $this->withSession([LoginController::EMAIL => 'ada@example.com'])

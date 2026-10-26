@@ -27,6 +27,8 @@ The first time a company sign-in succeeds, the desk creates your account. Being 
 
 **Sign out** is at the bottom of the rail when this sign-in screen is in use.
 
+**Dark mode** sits with your name on the rail, and on the sign-in page above the form. It switches the desk between the paper background and a warm dark background. The choice is remembered in this browser. Until you choose, the desk follows the color scheme of your device. Choose **Light mode** to switch back.
+
 ## Requesters
 
 A requester is the person the ticket is for. You see a ticket when you opened it, when your email is the requester address, or when you are named as the affected person.

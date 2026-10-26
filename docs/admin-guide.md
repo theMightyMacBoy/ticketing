@@ -684,7 +684,7 @@ MySQL and SQLite allow several rows with a null `graph_id` under the unique `(ma
 
 ## What the desk screens cover
 
-The web UI is the queue, the ticket (reply, note, assign, transfer, status, approve), the catalog, the two team lists, setup, the directory, privacy, the portal, and the email-first sign-in screen.
+The web UI is the queue, the ticket (reply, note, assign, transfer, status, approve), the catalog, the two team lists, setup, the directory, privacy, the portal, and the email-first sign-in screen. **Dark mode** on the rail and the sign-in page stores the choice in the browser. There is no server setting. With no choice stored, the pages follow the device color scheme.
 
 SLA policies, organizations, categories, labels, ticket links, work logs, attachments, configuration items, and resolution codes are available on the models. They do not have setup forms. Knowledge base articles, satisfaction surveys, on-call schedules, and live chat are not part of this package.
 
