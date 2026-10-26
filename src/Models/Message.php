@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -14,6 +15,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $user_id
  * @property string $message
+ * @property string $format
  * @property string $visibility
  * @property string|null $sender_email
  * @property string|null $sender_name
@@ -26,8 +28,11 @@ class Message extends Model
 
     /**
      * Inbound mail sets this so the customer's own message is not relayed back out.
+     * The desk composer sets $holdMail so files can be linked before the reply is sent.
      */
     public bool $suppressOutboundMail = false;
+
+    public static bool $holdMail = false;
 
     /**
      * @var list<string>
@@ -36,9 +41,14 @@ class Message extends Model
         'user_id',
         'ticket_id',
         'message',
+        'format',
         'visibility',
         'sender_email',
         'sender_name',
+    ];
+
+    protected $attributes = [
+        'format' => 'plain',
     ];
 
     /**
@@ -67,6 +77,11 @@ class Message extends Model
             config('auth.providers.users.model'),
             $tableName['columns']['user_foreign_id']
         );
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(config('laravel_ticket.models.attachment'));
     }
 
     public function scopePublic(Builder $builder): Builder

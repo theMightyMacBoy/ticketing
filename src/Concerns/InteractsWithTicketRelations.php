@@ -6,6 +6,7 @@ use Coderflex\LaravelTicket\Contracts\CanManageTickets;
 use Coderflex\LaravelTicket\Enums\MessageVisibility;
 use Coderflex\LaravelTicket\Enums\Status;
 use Coderflex\LaravelTicket\Exceptions\ReplyNotAllowed;
+use Coderflex\LaravelTicket\Models\Message;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
@@ -70,28 +71,37 @@ trait InteractsWithTicketRelations
     /**
      * Add a public reply as a specific user.
      */
-    public function messageAsUser(?Model $user, string $message): Model
+    public function messageAsUser(?Model $user, string $message, string $format = 'plain'): Model
     {
         $this->guardPublicReply($user);
 
-        return $this->addMessage($user, $message, MessageVisibility::PUBLIC->value);
+        return $this->addMessage($user, $message, MessageVisibility::PUBLIC->value, $format);
     }
 
     /**
      * Add an internal note. Notes do not count as a first response.
      */
-    public function note(string $message, ?Model $user = null): Model
+    public function note(string $message, ?Model $user = null, string $format = 'plain'): Model
     {
-        return $this->addMessage($user ?? auth()->user(), $message, MessageVisibility::INTERNAL->value);
+        return $this->addMessage($user ?? auth()->user(), $message, MessageVisibility::INTERNAL->value, $format);
     }
 
-    protected function addMessage(?Model $user, string $message, string $visibility): Model
+    protected function addMessage(?Model $user, string $message, string $visibility, string $format = 'plain'): Model
     {
-        return $this->messages()->create([
+        $record = $this->messages()->make([
             'user_id' => $user?->getKey() ?? auth()->id(),
             'message' => $message,
             'visibility' => $visibility,
+            'format' => $format === 'html' ? 'html' : 'plain',
         ]);
+
+        if ($record instanceof Message && Message::$holdMail) {
+            $record->suppressOutboundMail = true;
+        }
+
+        $record->save();
+
+        return $record;
     }
 
     protected function guardPublicReply(?Model $user): void

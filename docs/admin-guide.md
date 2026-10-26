@@ -207,10 +207,15 @@ The setup screen's **Save weekday hours** writes Monday–Friday 09:00–17:00 i
 'attachments' => [
     'disk' => 'public',
     'path' => 'tickets',
+    'max_kilobytes' => 10240,
 ],
 ```
 
-`Ticket::attachFile()` stores an uploaded file on that disk. The desk ticket page does not include a file field. Attachments are a model API.
+`Ticket::attachFile()` stores an uploaded file on that disk. The ticket page, the internal note, and the portal reply share one composer. **Bold**, **Italic**, **List**, **Numbered**, and **Link** format the text. **Photo** uploads a JPEG, PNG, GIF, or WebP and places it in the text. **Attach files** adds up to ten files (images, PDF, text, CSV, ZIP, Word, or Excel). A file can be sent with no text. `max_kilobytes` is the limit for one file. The default is 10 MB.
+
+Photos and files are downloaded through a signed-in route on that ticket. A photo in an internal note is not shown to the requester, and the requester cannot open its address. A photo in a public reply is part of the reply the requester sees. The default disk is `public`. If `public/storage` is linked, files on that disk can be opened without signing in. A desk that handles confidential tickets should set `disk` to `local`.
+
+Publish and run `add_rich_messages` after the earlier migrations. It adds `messages.format` (`plain` or `html`) and `attachments.is_inline`.
 
 ### Mail
 
@@ -473,7 +478,7 @@ These are model APIs. The desk screens do not edit them.
 | `attachConfigurationItem()` | A configuration item related to the ticket. |
 | `ResolutionCode` | Optional code stored by `resolve($code)`. |
 
-`message()` and `messageAsUser()` add a public reply. `note()` adds an internal note. A public reply on an archived or cancelled ticket throws `ReplyNotAllowed`. A locked ticket accepts a public reply from the assignee or a platform administrator.
+`message()` and `messageAsUser()` add a public reply. `note()` adds an internal note. Both accept an optional format, `plain` or `html`. The desk stores a reply with no formatting as plain text. Formatted text is stored as HTML after unsafe tags, scripts, and remote images are removed. A public reply on an archived or cancelled ticket throws `ReplyNotAllowed`. A locked ticket accepts a public reply from the assignee or a platform administrator.
 
 Every status change, reply, and note writes a `TicketActivity` row.
 
@@ -579,7 +584,7 @@ The reply does not move the ticket to another group.
 
 ### Outbound
 
-Public replies go out through SMTP (`mail.mailer` or the default mailer). The From address is the ticket's mailbox, or else the assignment group's mailbox. The To address is `requester_email`, or else the owning user's email. The subject is `[TICKET-NUMBER] title`. `In-Reply-To` and `References` are set from the last stored internet message ids.
+Public replies go out through SMTP (`mail.mailer` or the default mailer). The From address is the ticket's mailbox, or else the assignment group's mailbox. The To address is `requester_email`, or else the owning user's email. The subject is `[TICKET-NUMBER] title`. `In-Reply-To` and `References` are set from the last stored internet message ids. A reply with formatting or a photo is sent as HTML, and each photo is embedded in that message. Other files on the reply are attached. A reply with no formatting stays plain text.
 
 Nothing is sent when:
 
@@ -684,8 +689,8 @@ MySQL and SQLite allow several rows with a null `graph_id` under the unique `(ma
 
 ## What the desk screens cover
 
-The web UI is the queue, the ticket (reply, note, assign, transfer, status, approve), the catalog, the two team lists, setup, the directory, privacy, the portal, and the email-first sign-in screen. **Dark mode** on the rail and the sign-in page stores the choice in the browser. There is no server setting. With no choice stored, the pages follow the device color scheme.
+The web UI is the queue, the ticket (formatted reply, internal note, photos, files, assign, transfer, status, approve), the catalog, the two team lists, setup, the directory, privacy, the portal, and the email-first sign-in screen. **Dark mode** on the rail and the sign-in page stores the choice in the browser. There is no server setting. With no choice stored, the pages follow the device color scheme.
 
-SLA policies, organizations, categories, labels, ticket links, work logs, attachments, configuration items, and resolution codes are available on the models. They do not have setup forms. Knowledge base articles, satisfaction surveys, on-call schedules, and live chat are not part of this package.
+SLA policies, organizations, categories, labels, ticket links, work logs, configuration items, and resolution codes are available on the models. They do not have setup forms. Knowledge base articles, satisfaction surveys, on-call schedules, and live chat are not part of this package.
 
 The original ticket model methods (`archive`, `close`, `reopen`, `assignTo`, the priority helpers, and the label and category relations) stay documented in the [README](../README.md).

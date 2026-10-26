@@ -55,6 +55,8 @@ The new ticket is numbered for its type, for example `INC-000001` or `CASE-00000
 
 On your ticket, write in **Reply** and choose **Send reply**. The reply is public. The agent working the ticket can read it. Internal notes written by agents are not shown to you.
 
+**Bold**, **Italic**, **List**, **Numbered**, and **Link** format the reply. **Photo** places a picture in the text. **Attach files** adds a file under the reply. You can send a file with no text. Pictures and files on a public reply are visible to the people who can open the ticket.
+
 You cannot reply when the ticket is archived or cancelled. A locked ticket accepts a reply from the assigned agent and from a platform administrator.
 
 ### Email
@@ -71,7 +73,7 @@ You can keep the conversation in email.
 **Privacy** is linked on the rail for department agents and platform administrators. Any signed-in person can open `/desk/privacy` to export or erase their own tickets.
 
 - **Export** downloads JSON for the email in the form: ticket number, title, body, status, requester, and public replies.
-- **Erase tickets** replaces the title with "Erased request", clears the body and requester address, and replaces each reply with `[erased]`. The ticket number stays.
+- **Erase tickets** replaces the title with "Erased request", clears the body and requester address, replaces each reply with `[erased]`, and deletes photos and files attached to those tickets. The ticket number stays.
 
 A requester can export and erase their own tickets, including confidential ones. An agent erases only the tickets they are allowed to see. A platform administrator does not erase another department's confidential tickets.
 
@@ -100,9 +102,9 @@ A confidential ticket is marked **Confidential**. If you are not involved, it is
 
 The ticket page shows the number, title, status, and the conversation.
 
-**Public reply** is sent to the requester when the ticket has a mailbox and notifications can be delivered. The subject includes the ticket number. The reply is not sent when you are the requester, when the destination is the same address as the mailbox, or when the ticket has no mailbox.
+**Public reply** is sent to the requester when the ticket has a mailbox and notifications can be delivered. The subject includes the ticket number. The reply is not sent when you are the requester, when the destination is the same address as the mailbox, or when the ticket has no mailbox. Formatting and photos are included in that email. Other files are attached to it. A reply with no formatting is sent as text.
 
-**Internal note** stays on the ticket. It is not emailed and it is not shown in the requester's portal. The note is drawn with a warm edge so you can tell it from the public conversation.
+**Internal note** stays on the ticket. It is not emailed and it is not shown in the requester's portal. The note is drawn with a warm edge so you can tell it from the public conversation. You can format a note, place a photo in it, and attach files. The requester cannot open a photo that was added on an internal note.
 
 **Assign** takes the assignee's email. That person is notified when mail notifications are on.
 

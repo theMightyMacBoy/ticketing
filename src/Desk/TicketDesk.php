@@ -9,6 +9,7 @@ use Coderflex\LaravelTicket\Enums\MessageVisibility;
 use Coderflex\LaravelTicket\Enums\TicketType;
 use Coderflex\LaravelTicket\Enums\Urgency;
 use Coderflex\LaravelTicket\Models\AssignmentGroup;
+use Coderflex\LaravelTicket\Models\Attachment;
 use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\Message;
 use Coderflex\LaravelTicket\Models\Service;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 
 class TicketDesk
 {
@@ -131,8 +133,17 @@ class TicketDesk
         $table = is_array($messages) ? (string) ($messages['table'] ?? 'messages') : 'messages';
         $foreign = is_array($messages) ? (string) ($messages['columns']['ticket_foreign_id'] ?? 'ticket_id') : 'ticket_id';
 
+        foreach (Attachment::query()->whereIn('ticket_id', $ids)->get() as $file) {
+            if ($file->path !== '') {
+                Storage::disk($file->disk)->delete($file->path);
+            }
+        }
+
+        Attachment::query()->whereIn('ticket_id', $ids)->delete();
+
         DB::table($table)->whereIn($foreign, $ids)->update([
             'message' => '[erased]',
+            'format' => 'plain',
             'sender_email' => null,
             'sender_name' => null,
             'updated_at' => now(),

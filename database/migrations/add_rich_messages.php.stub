@@ -1,0 +1,23 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        $messages = config('laravel_ticket.table_names.messages', ['table' => 'messages']);
+        $messageTable = is_array($messages) ? (string) ($messages['table'] ?? 'messages') : 'messages';
+        $attachments = config('laravel_ticket.table_names.attachments', 'attachments');
+
+        Schema::table($messageTable, function (Blueprint $table) {
+            $table->string('format')->default('plain');
+        });
+
+        Schema::table($attachments, function (Blueprint $table) {
+            $table->boolean('is_inline')->default(false);
+        });
+    }
+};

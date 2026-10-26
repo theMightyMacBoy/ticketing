@@ -4,11 +4,14 @@ namespace Coderflex\LaravelTicket\Mail;
 
 use Coderflex\LaravelTicket\Enums\EmailDirection;
 use Coderflex\LaravelTicket\Models\AssignmentGroup;
+use Coderflex\LaravelTicket\Models\Attachment;
 use Coderflex\LaravelTicket\Models\EmailMessage;
 use Coderflex\LaravelTicket\Models\Mailbox;
 use Coderflex\LaravelTicket\Models\Message;
 use Coderflex\LaravelTicket\Models\Ticket;
+use Coderflex\LaravelTicket\RichText\HtmlBody;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class TicketMailer
@@ -55,16 +58,29 @@ class TicketMailer
         ));
 
         $subject = $this->subject($ticket);
+        $bodyText = (string) $message->message;
+        $bodyHtml = null;
+        $inline = [];
+
+        if ($message->format === 'html') {
+            $embedded = app(HtmlBody::class)->embed($bodyText, $ticket);
+            $bodyHtml = $embedded['html'];
+            $bodyText = $embedded['text'];
+            $inline = $embedded['inline'];
+        }
 
         $mailable = new TicketReplyMail(
             fromAddress: $mailbox->address,
             fromName: $mailbox->name,
-            bodyText: (string) $message->message,
+            bodyText: $bodyText,
             subjectLine: $subject,
             messageId: $messageId,
             inReplyTo: is_string($inReplyTo) ? $inReplyTo : null,
             references: $references,
             ticketNumber: (string) $ticket->ticket_number,
+            bodyHtml: $bodyHtml,
+            inline: $inline,
+            files: $this->files($message),
         );
 
         $mailer = config('laravel_ticket.mail.mailer');
@@ -84,6 +100,34 @@ class TicketMailer
             'subject' => Str::limit($subject, 255, ''),
             'received_at' => now(),
         ]);
+    }
+
+    /**
+     * @return list<array{bytes: string, mime: string, name: string}>
+     */
+    private function files(Message $message): array
+    {
+        $files = [];
+
+        foreach ($message->attachments()->get() as $file) {
+            if (! $file instanceof Attachment || $file->is_inline || $file->path === '') {
+                continue;
+            }
+
+            $bytes = Storage::disk($file->disk)->get($file->path);
+
+            if (! is_string($bytes) || $bytes === '') {
+                continue;
+            }
+
+            $files[] = [
+                'bytes' => $bytes,
+                'mime' => is_string($file->mime) && $file->mime !== '' ? $file->mime : 'application/octet-stream',
+                'name' => $file->original_name !== '' ? $file->original_name : 'file',
+            ];
+        }
+
+        return $files;
     }
 
     private function mailboxFor(Ticket $ticket): ?Mailbox

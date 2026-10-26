@@ -1,5 +1,6 @@
 <?php
 
+use Coderflex\LaravelTicket\Http\Controllers\AttachmentController;
 use Coderflex\LaravelTicket\Http\Controllers\CatalogController;
 use Coderflex\LaravelTicket\Http\Controllers\DirectoryController;
 use Coderflex\LaravelTicket\Http\Controllers\PortalController;
@@ -22,6 +23,8 @@ if (! is_array($middleware)) {
 Route::middleware($middleware)->group(function () use ($desk, $portal) {
     Route::get($desk, [QueueController::class, 'index'])->name('laravel-ticket.desk');
     Route::get($desk.'/tickets/{ticket}', [TicketController::class, 'show'])->name('laravel-ticket.tickets.show');
+    Route::post($desk.'/tickets/{ticket}/attachments', [AttachmentController::class, 'store'])->name('laravel-ticket.tickets.attachments.store');
+    Route::get($desk.'/tickets/{ticket}/attachments/{attachment}', [AttachmentController::class, 'show'])->name('laravel-ticket.tickets.attachments.show');
     Route::post($desk.'/tickets/{ticket}/reply', [TicketController::class, 'reply'])->name('laravel-ticket.tickets.reply');
     Route::post($desk.'/tickets/{ticket}/note', [TicketController::class, 'note'])->name('laravel-ticket.tickets.note');
     Route::post($desk.'/tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('laravel-ticket.tickets.assign');

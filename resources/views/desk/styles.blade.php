@@ -581,6 +581,19 @@
 
     .entry .body { margin: 0; white-space: pre-wrap; }
 
+    .entry .body.is-rich { white-space: normal; }
+
+    .entry .body.is-rich img,
+    .editor .sheet img { max-width: 100%; height: auto; }
+
+    .files {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+    }
+
+    .files a { color: var(--ink); }
+
     .entry.is-internal {
         margin: 8px 0;
         padding: 12px;
@@ -596,6 +609,31 @@
         background: var(--note);
         border: 1px solid var(--note-line);
     }
+
+    .editor .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .editor .sheet {
+        min-height: 120px;
+        padding: 8px 10px;
+        color: var(--ink);
+        background: var(--sheet);
+        border: 1px solid var(--line-strong);
+        border-radius: 2px;
+        line-height: 1.5;
+    }
+
+    .editor .sheet:focus { outline: 1px solid var(--brass); outline-offset: 1px; }
+
+    .editor .fallback[hidden],
+    .editor .sheet[hidden],
+    .editor input[hidden] { display: none; }
+
+    .editor .attach { margin-top: 8px; }
 
     .dock { border-left: 1px solid var(--line); padding-left: 20px; }
 

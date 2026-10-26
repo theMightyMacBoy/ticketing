@@ -374,15 +374,17 @@ trait InteractsWithItsm
         $disk = (string) config('laravel_ticket.attachments.disk', 'public');
         $directory = trim((string) config('laravel_ticket.attachments.path', 'tickets'), '/').'/'.$this->getKey();
         $path = $file->store($directory, $disk);
+        $name = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+        $mime = $file->getMimeType() ?: $file->getClientMimeType();
 
         $attachment = new Attachment([
             'ticket_id' => $this->getKey(),
             'message_id' => $message?->getKey(),
             'user_id' => $user?->getKey() ?? auth()->id(),
             'disk' => $disk,
-            'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime' => $file->getClientMimeType(),
+            'path' => is_string($path) ? $path : '',
+            'original_name' => $name !== '' ? $name : 'file',
+            'mime' => $mime,
             'size' => $file->getSize() ?: 0,
         ]);
         $attachment->save();

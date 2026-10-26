@@ -22,16 +22,14 @@
                     <time datetime="{{ $message->created_at->toIso8601String() }}">{{ $message->created_at->timezone(config('app.timezone'))->format('M j, Y g:i a') }}</time>
                 @endif
             </header>
-            <p class="body">{{ $message->message }}</p>
+            @include('laravel-ticket::desk.entry-body', ['message' => $message, 'ticket' => $ticket])
         </article>
     @endforeach
     <section class="composer">
         <h2>Reply</h2>
-        <form class="form-stack" method="post" action="{{ route('laravel-ticket.portal.tickets.reply', $ticket) }}">
+        <form class="form-stack" method="post" action="{{ route('laravel-ticket.portal.tickets.reply', $ticket) }}" enctype="multipart/form-data">
             @csrf
-            <label for="message">Reply
-                <textarea id="message" name="message" required></textarea>
-            </label>
+            @include('laravel-ticket::desk.composer', ['id' => 'message', 'label' => 'Reply', 'ticket' => $ticket])
             <button type="submit">Send reply</button>
         </form>
     </section>

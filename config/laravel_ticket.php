@@ -187,9 +187,21 @@ return [
         'holidays' => [],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Attachments
+    |--------------------------------------------------------------------------
+    |
+    | Replies, notes, and inline photos are stored on this disk, under path.
+    | The public disk is reachable at /storage when that link exists. A desk
+    | that handles confidential tickets should set the disk to local. The
+    | ticket page serves files through an authenticated route.
+    |
+    */
     'attachments' => [
         'disk' => 'public',
         'path' => 'tickets',
+        'max_kilobytes' => 10240,
     ],
 
     /*

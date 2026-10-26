@@ -58,6 +58,7 @@ class TestCase extends Orchestra
             include __DIR__.'/../database/migrations/add_single_sign_on.php.stub',
             include __DIR__.'/../database/migrations/add_team_managers.php.stub',
             include __DIR__.'/../database/migrations/add_group_manager_block.php.stub',
+            include __DIR__.'/../database/migrations/add_rich_messages.php.stub',
         ];
 
         collect($migrations)->each(fn ($migration) => $migration->up());

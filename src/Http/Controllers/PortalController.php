@@ -6,6 +6,7 @@ use Coderflex\LaravelTicket\Enums\MessageVisibility;
 use Coderflex\LaravelTicket\Exceptions\ReplyNotAllowed;
 use Coderflex\LaravelTicket\Models\Message;
 use Coderflex\LaravelTicket\Models\Ticket;
+use Coderflex\LaravelTicket\RichText\MessageWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -39,7 +40,7 @@ class PortalController
 
         Gate::authorize('view', $record);
 
-        $messages = $record->messages()->oldest('id')->get()->filter(function ($message) {
+        $messages = $record->messages()->with('attachments')->oldest('id')->get()->filter(function ($message) {
             return $message instanceof Message
                 && $message->visibility === MessageVisibility::PUBLIC->value;
         });
@@ -60,10 +61,9 @@ class PortalController
         }
 
         Gate::authorize('view', $record);
-        $message = (string) $request->validate(['message' => ['required', 'string']])['message'];
 
         try {
-            $record->messageAsUser($actor, $message);
+            app(MessageWriter::class)->write($record, $actor, $request, 'public');
         } catch (ReplyNotAllowed $exception) {
             return back()->withErrors(['message' => $exception->getMessage()]);
         }

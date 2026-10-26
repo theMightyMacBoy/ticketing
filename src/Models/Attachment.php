@@ -8,8 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 /**
+ * @property int $ticket_id
+ * @property int|null $user_id
  * @property string $disk
  * @property string $path
+ * @property string $original_name
+ * @property string|null $mime
+ * @property int|null $message_id
+ * @property bool $is_inline
  */
 class Attachment extends Model
 {
@@ -24,10 +30,12 @@ class Attachment extends Model
         'original_name',
         'mime',
         'size',
+        'is_inline',
     ];
 
     protected $casts = [
         'size' => 'integer',
+        'is_inline' => 'boolean',
     ];
 
     public function ticket(): BelongsTo

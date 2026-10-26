@@ -12,6 +12,7 @@ use Coderflex\LaravelTicket\Models\AssignmentGroup;
 use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\Message;
 use Coderflex\LaravelTicket\Models\Ticket;
+use Coderflex\LaravelTicket\RichText\MessageWriter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class TicketController
         Gate::authorize('view', $record);
 
         $internal = Gate::forUser($actor)->allows('addInternalNote', $record);
-        $messages = $record->messages()->oldest('id')->get()->filter(function ($message) use ($internal) {
+        $messages = $record->messages()->with('attachments')->oldest('id')->get()->filter(function ($message) use ($internal) {
             return $message instanceof Message && ($internal || $message->visibility === 'public');
         });
 
@@ -48,10 +49,9 @@ class TicketController
         $actor = $this->actor($request);
         $record = $this->ticket($ticket);
         Gate::authorize('update', $record);
-        $message = (string) $request->validate(['message' => ['required', 'string']])['message'];
 
         try {
-            $record->messageAsUser($actor, $message);
+            app(MessageWriter::class)->write($record, $actor, $request, 'public');
         } catch (ReplyNotAllowed $exception) {
             return back()->withErrors(['message' => $exception->getMessage()]);
         }
@@ -64,8 +64,7 @@ class TicketController
         $actor = $this->actor($request);
         $record = $this->ticket($ticket);
         Gate::authorize('addInternalNote', $record);
-        $message = (string) $request->validate(['message' => ['required', 'string']])['message'];
-        $record->note($message, $actor);
+        app(MessageWriter::class)->write($record, $actor, $request, 'internal');
 
         return back()->with('status', 'Note saved.');
     }

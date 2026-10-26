@@ -33,18 +33,16 @@
                             <time datetime="{{ $message->created_at->toIso8601String() }}">{{ $message->created_at->timezone(config('app.timezone'))->format('M j, Y g:i a') }}</time>
                         @endif
                     </header>
-                    <p class="body">{{ $message->message }}</p>
+                    @include('laravel-ticket::desk.entry-body', ['message' => $message, 'ticket' => $ticket])
                 </article>
             @endforeach
 
             @if ($canUpdate)
                 <section class="composer">
                     <h2>Public reply</h2>
-                    <form class="form-stack" method="post" action="{{ route('laravel-ticket.tickets.reply', $ticket) }}">
+                    <form class="form-stack" method="post" action="{{ route('laravel-ticket.tickets.reply', $ticket) }}" enctype="multipart/form-data">
                         @csrf
-                        <label for="reply">Reply
-                            <textarea id="reply" name="message" required></textarea>
-                        </label>
+                        @include('laravel-ticket::desk.composer', ['id' => 'reply', 'label' => 'Reply', 'ticket' => $ticket])
                         <button type="submit">Send reply</button>
                     </form>
                 </section>
@@ -54,11 +52,9 @@
                 <section class="composer is-internal">
                     <h2>Internal note</h2>
                     <p class="hint">Agents on this ticket can read it. The requester cannot.</p>
-                    <form class="form-stack" method="post" action="{{ route('laravel-ticket.tickets.note', $ticket) }}">
+                    <form class="form-stack" method="post" action="{{ route('laravel-ticket.tickets.note', $ticket) }}" enctype="multipart/form-data">
                         @csrf
-                        <label for="note">Note
-                            <textarea id="note" name="message" required></textarea>
-                        </label>
+                        @include('laravel-ticket::desk.composer', ['id' => 'note', 'label' => 'Note', 'ticket' => $ticket])
                         <button class="quiet" type="submit">Save note</button>
                     </form>
                 </section>
