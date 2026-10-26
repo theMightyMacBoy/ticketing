@@ -10,8 +10,11 @@ use InvalidArgumentException;
 /**
  * @property string $key
  * @property string|null $ticket_type
+ * @property int|null $department_id
+ * @property int|null $service_id
  * @property string $data_type
  * @property array<int, string>|null $options
+ * @property bool $is_required
  */
 class CustomFieldDefinition extends Model
 {
@@ -21,6 +24,8 @@ class CustomFieldDefinition extends Model
         'name',
         'key',
         'ticket_type',
+        'department_id',
+        'service_id',
         'data_type',
         'options',
         'is_required',

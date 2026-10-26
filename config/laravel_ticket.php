@@ -3,9 +3,11 @@
 use Coderflex\LaravelTicket\Models\Approval;
 use Coderflex\LaravelTicket\Models\AssignmentGroup;
 use Coderflex\LaravelTicket\Models\Attachment;
+use Coderflex\LaravelTicket\Models\BusinessCalendar;
 use Coderflex\LaravelTicket\Models\Category;
 use Coderflex\LaravelTicket\Models\ConfigurationItem;
 use Coderflex\LaravelTicket\Models\CustomFieldDefinition;
+use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\EmailMessage;
 use Coderflex\LaravelTicket\Models\Label;
 use Coderflex\LaravelTicket\Models\Mailbox;
@@ -18,6 +20,7 @@ use Coderflex\LaravelTicket\Models\Ticket;
 use Coderflex\LaravelTicket\Models\TicketActivity;
 use Coderflex\LaravelTicket\Models\TicketLink;
 use Coderflex\LaravelTicket\Models\TicketSequence;
+use Coderflex\LaravelTicket\Models\TicketTypeDefinition;
 use Coderflex\LaravelTicket\Models\WorkLog;
 
 return [
@@ -76,6 +79,10 @@ return [
         'custom_field_definitions' => 'custom_field_definitions',
         'mailboxes' => 'mailboxes',
         'email_messages' => 'email_messages',
+        'departments' => 'departments',
+        'department_user' => 'department_user',
+        'ticket_types' => 'ticket_types',
+        'business_calendars' => 'business_calendars',
     ],
 
     'models' => [
@@ -98,6 +105,9 @@ return [
         'custom_field_definition' => CustomFieldDefinition::class,
         'mailbox' => Mailbox::class,
         'email_message' => EmailMessage::class,
+        'department' => Department::class,
+        'ticket_type' => TicketTypeDefinition::class,
+        'business_calendar' => BusinessCalendar::class,
     ],
 
     /*

@@ -9,6 +9,7 @@ use Coderflex\LaravelTicket\Exceptions\ApprovalRequired;
 use Coderflex\LaravelTicket\Exceptions\InvalidTicketTransition;
 use Coderflex\LaravelTicket\Exceptions\MissingCustomFields;
 use Coderflex\LaravelTicket\Models\Ticket;
+use Coderflex\LaravelTicket\Models\TicketTypeDefinition;
 
 class TicketWorkflow
 {
@@ -48,13 +49,60 @@ class TicketWorkflow
             }
         }
 
-        if (
-            $to === Status::IN_PROGRESS->value
-            && $ticket->type === TicketType::CHANGE->value
-            && config('laravel_ticket.workflow.require_change_approval', true)
-            && ! $ticket->approvals()->where('status', ApprovalStatus::APPROVED->value)->exists()
-        ) {
-            throw new ApprovalRequired('A change ticket needs an approval before work starts.');
+        if ($to === Status::IN_PROGRESS->value && $this->mustBeApproved($ticket) && ! $this->approvalsComplete($ticket)) {
+            $message = $ticket->type === TicketType::CHANGE->value
+                ? 'A change ticket needs an approval before work starts.'
+                : 'This ticket needs every approval before work starts.';
+
+            throw new ApprovalRequired($message);
         }
+    }
+
+    private function mustBeApproved(Ticket $ticket): bool
+    {
+        if (
+            $ticket->type === TicketType::CHANGE->value
+            && ! config('laravel_ticket.workflow.require_change_approval', true)
+        ) {
+            return false;
+        }
+
+        $definition = $this->typeDefinition($ticket);
+
+        if ($definition instanceof TicketTypeDefinition) {
+            return $definition->requires_approval;
+        }
+
+        return $ticket->type === TicketType::CHANGE->value;
+    }
+
+    private function approvalsComplete(Ticket $ticket): bool
+    {
+        if (! $ticket->approvals()->exists()) {
+            return false;
+        }
+
+        return ! $ticket->approvals()
+            ->where('status', '!=', ApprovalStatus::APPROVED->value)
+            ->exists();
+    }
+
+    private function typeDefinition(Ticket $ticket): ?TicketTypeDefinition
+    {
+        $query = TicketTypeDefinition::query()
+            ->where('slug', $ticket->type)
+            ->where('is_active', true);
+
+        if ($ticket->department_id) {
+            $specific = (clone $query)->where('department_id', $ticket->department_id)->first();
+
+            if ($specific instanceof TicketTypeDefinition) {
+                return $specific;
+            }
+        }
+
+        $global = (clone $query)->whereNull('department_id')->first();
+
+        return $global instanceof TicketTypeDefinition ? $global : null;
     }
 }

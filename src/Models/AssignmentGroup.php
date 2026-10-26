@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int|null $mailbox_id
+ * @property int|null $department_id
  * @property bool $is_mailbox_primary
  */
 class AssignmentGroup extends Model
@@ -22,6 +23,7 @@ class AssignmentGroup extends Model
         'description',
         'is_active',
         'mailbox_id',
+        'department_id',
         'is_mailbox_primary',
     ];
 
@@ -33,6 +35,11 @@ class AssignmentGroup extends Model
     public function mailbox(): BelongsTo
     {
         return $this->belongsTo(config('laravel_ticket.models.mailbox'));
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.department'));
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace Coderflex\LaravelTicket\Sla;
 
 use Coderflex\LaravelTicket\Enums\Status;
+use Coderflex\LaravelTicket\Models\BusinessCalendar;
 use Coderflex\LaravelTicket\Models\SlaPolicy;
 use Coderflex\LaravelTicket\Models\Ticket;
 use Illuminate\Support\Carbon;
@@ -29,7 +30,8 @@ class SlaClock
             $elapsed = $this->elapsedMinutes(
                 $ticket->sla_paused_at,
                 now(),
-                (bool) ($policy?->use_business_hours)
+                (bool) ($policy?->use_business_hours),
+                $this->hoursFor($ticket)
             );
             $ticket->sla_paused_minutes = (int) $ticket->sla_paused_minutes + $elapsed;
             $ticket->sla_paused_at = null;
@@ -69,15 +71,37 @@ class SlaClock
 
     public function policyFor(Ticket $ticket): ?SlaPolicy
     {
-        return SlaPolicy::query()
-            ->where('priority', $ticket->priority)
-            ->where('ticket_type', $ticket->type)
-            ->first()
-            ?? SlaPolicy::query()
-                ->where('priority', $ticket->priority)
-                ->whereNull('ticket_type')
-                ->first()
-            ?? SlaPolicy::query()->where('is_default', true)->first();
+        $matches = [];
+
+        if ($ticket->department_id) {
+            $matches[] = [$ticket->department_id, $ticket->type];
+            $matches[] = [$ticket->department_id, null];
+        }
+
+        $matches[] = [null, $ticket->type];
+        $matches[] = [null, null];
+
+        foreach ($matches as [$departmentId, $type]) {
+            $query = SlaPolicy::query()->where('priority', $ticket->priority);
+
+            $query = $departmentId
+                ? $query->where('department_id', $departmentId)
+                : $query->whereNull('department_id');
+
+            $query = $type
+                ? $query->where('ticket_type', $type)
+                : $query->whereNull('ticket_type');
+
+            $policy = $query->first();
+
+            if ($policy instanceof SlaPolicy) {
+                return $policy;
+            }
+        }
+
+        $fallback = SlaPolicy::query()->where('is_default', true)->first();
+
+        return $fallback instanceof SlaPolicy ? $fallback : null;
     }
 
     public function applyDueDates(Ticket $ticket): void
@@ -88,6 +112,7 @@ class SlaClock
             return;
         }
 
+        $hours = $this->hoursFor($ticket);
         $ticket->sla_policy_id = $policy->getKey();
         $origin = $ticket->created_at ?? now();
         $paused = (int) $ticket->sla_paused_minutes;
@@ -95,28 +120,49 @@ class SlaClock
         $ticket->response_due_at = $this->dueAt(
             $origin,
             $policy->response_minutes + $paused,
-            (bool) $policy->use_business_hours
+            (bool) $policy->use_business_hours,
+            $hours
         );
         $ticket->resolution_due_at = $this->dueAt(
             $origin,
             $policy->resolution_minutes + $paused,
-            (bool) $policy->use_business_hours
+            (bool) $policy->use_business_hours,
+            $hours
         );
     }
 
-    private function dueAt(Carbon $origin, int $minutes, bool $businessHours): Carbon
+    private function hoursFor(Ticket $ticket): BusinessHours
+    {
+        return $this->businessHours->using($this->calendarFor($ticket));
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function calendarFor(Ticket $ticket): ?array
+    {
+        if (! $ticket->department_id) {
+            return null;
+        }
+
+        $calendar = BusinessCalendar::query()->where('department_id', $ticket->department_id)->first();
+
+        return $calendar instanceof BusinessCalendar ? $calendar->toSchedule() : null;
+    }
+
+    private function dueAt(Carbon $origin, int $minutes, bool $businessHours, BusinessHours $hours): Carbon
     {
         if ($businessHours) {
-            return $this->businessHours->addMinutes($origin, $minutes);
+            return $hours->addMinutes($origin, $minutes);
         }
 
         return $origin->copy()->addMinutes($minutes);
     }
 
-    private function elapsedMinutes(Carbon $start, Carbon $end, bool $businessHours): int
+    private function elapsedMinutes(Carbon $start, Carbon $end, bool $businessHours, BusinessHours $hours): int
     {
         if ($businessHours) {
-            return $this->businessHours->diffMinutes($start, $end);
+            return $hours->diffMinutes($start, $end);
         }
 
         return max(0, (int) floor(($end->getTimestamp() - $start->getTimestamp()) / 60));

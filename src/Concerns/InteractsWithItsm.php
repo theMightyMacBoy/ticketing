@@ -2,6 +2,7 @@
 
 namespace Coderflex\LaravelTicket\Concerns;
 
+use Coderflex\LaravelTicket\Desk\TicketDesk;
 use Coderflex\LaravelTicket\Enums\ApprovalStatus;
 use Coderflex\LaravelTicket\Enums\LinkType;
 use Coderflex\LaravelTicket\Enums\PendingReason;
@@ -12,6 +13,7 @@ use Coderflex\LaravelTicket\Models\AssignmentGroup;
 use Coderflex\LaravelTicket\Models\Attachment;
 use Coderflex\LaravelTicket\Models\ConfigurationItem;
 use Coderflex\LaravelTicket\Models\CustomFieldDefinition;
+use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\Message;
 use Coderflex\LaravelTicket\Models\Organization;
 use Coderflex\LaravelTicket\Models\ResolutionCode;
@@ -22,6 +24,7 @@ use Coderflex\LaravelTicket\Models\WorkLog;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection as SupportCollection;
 use InvalidArgumentException;
 
 trait InteractsWithItsm
@@ -72,11 +75,57 @@ trait InteractsWithItsm
 
     public function assignGroup(AssignmentGroup|int $group): self
     {
-        $this->update([
-            'assignment_group_id' => $group instanceof AssignmentGroup ? $group->getKey() : $group,
-        ]);
+        $model = $group instanceof AssignmentGroup
+            ? $group
+            : AssignmentGroup::query()->find($group);
+
+        $attributes = [
+            'assignment_group_id' => $model instanceof AssignmentGroup ? $model->getKey() : $group,
+        ];
+
+        if ($model instanceof AssignmentGroup && $model->department_id) {
+            $attributes['department_id'] = $model->department_id;
+        }
+
+        $this->update($attributes);
 
         return $this;
+    }
+
+    public function transferTo(AssignmentGroup|Department $target): self
+    {
+        if ($target instanceof Department) {
+            $this->update([
+                'department_id' => $target->getKey(),
+                'assignment_group_id' => null,
+            ]);
+
+            return $this;
+        }
+
+        return $this->assignGroup($target);
+    }
+
+    /**
+     * Open a child ticket for another department and link it to this case.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function spawnTask(array $attributes, AssignmentGroup|Department|null $target = null): Ticket
+    {
+        $attributes['user_id'] ??= $this->user_id;
+
+        if ($target instanceof AssignmentGroup) {
+            $attributes['assignment_group_id'] = $target->getKey();
+            $attributes['department_id'] = $target->department_id;
+        } elseif ($target instanceof Department) {
+            $attributes['department_id'] = $target->getKey();
+        }
+
+        $child = app(TicketDesk::class)->open($attributes);
+        $this->addChild($child);
+
+        return $child;
     }
 
     public function associateOrganization(Organization|int $organization): self
@@ -152,6 +201,34 @@ trait InteractsWithItsm
         event(new ApprovalRequested($approval));
 
         return $approval;
+    }
+
+    /**
+     * @param  array<int, Model>  $approvers
+     * @return SupportCollection<int, Approval>
+     */
+    public function requestApprovalChain(array $approvers, ?Model $requester = null): SupportCollection
+    {
+        $created = collect();
+
+        foreach (array_values($approvers) as $index => $approver) {
+            $approval = new Approval([
+                'ticket_id' => $this->getKey(),
+                'approver_id' => $approver->getKey(),
+                'requested_by' => $requester?->getKey() ?? auth()->id(),
+                'status' => $index === 0 ? ApprovalStatus::PENDING->value : ApprovalStatus::WAITING->value,
+                'position' => $index + 1,
+            ]);
+            $approval->save();
+
+            if ($index === 0) {
+                event(new ApprovalRequested($approval));
+            }
+
+            $created->push($approval);
+        }
+
+        return $created;
     }
 
     public function link(Ticket $other, LinkType|string $type, ?Model $user = null): TicketLink
@@ -235,6 +312,14 @@ trait InteractsWithItsm
                 throw new InvalidArgumentException("Custom field [{$key}] does not apply to this ticket type.");
             }
 
+            if ($definition->department_id && (int) $definition->department_id !== (int) $this->department_id) {
+                throw new InvalidArgumentException("Custom field [{$key}] does not apply to this department.");
+            }
+
+            if ($definition->service_id && (int) $definition->service_id !== (int) $this->service_id) {
+                throw new InvalidArgumentException("Custom field [{$key}] does not apply to this catalog item.");
+            }
+
             $definition->assertValue($value);
         }
 
@@ -257,6 +342,20 @@ trait InteractsWithItsm
             ->where('is_required', true)
             ->where(function ($query) {
                 $query->whereNull('ticket_type')->orWhere('ticket_type', $this->type);
+            })
+            ->where(function ($query) {
+                $query->whereNull('department_id');
+
+                if ($this->department_id) {
+                    $query->orWhere('department_id', $this->department_id);
+                }
+            })
+            ->where(function ($query) {
+                $query->whereNull('service_id');
+
+                if ($this->service_id) {
+                    $query->orWhere('service_id', $this->service_id);
+                }
             })
             ->get()
             ->filter(function (CustomFieldDefinition $definition) use ($values) {

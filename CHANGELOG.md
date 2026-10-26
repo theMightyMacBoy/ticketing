@@ -7,6 +7,7 @@ All notable changes to `laravel-ticket` will be documented in this file.
 - Add an IT service-desk domain: ticket types and public numbers, impact × urgency priority, status workflow, SLA clocks with a business calendar, assignment groups, organizations, approvals, internal notes, links, work logs, attachments, a service catalog, custom fields, audit history, queue visibility, and service-desk reporting.
 - Add shared Exchange Online mailboxes. Graph application auth fetches unread mail. New mail opens on the mailbox's primary support group, and replies stay on the parent ticket. Outbound replies go through the app's SMTP mailer as the shared address.
 - Optional per-mailbox retention deletes read inbox mail older than a set number of days. `tickets:purge-mail` runs at 00:00 UTC. Unread mail is kept.
+- Add departments for a shared service desk. Each department has its own agents, ticket types and numbers, catalog forms, business calendar, approval chains, and handoff into another department's queue. Reports can be scoped with `forDepartment()`.
 - `assignTo()` stores a user id. `isClosed()` is true only when the status is `closed`. `markAsResolved()` moves the ticket to `resolved`.
 - New tickets opened through Eloquent default to status `new`. `tickets.message` is text. Ticket and message models use `$fillable`.
 

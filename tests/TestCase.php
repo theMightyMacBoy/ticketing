@@ -48,6 +48,7 @@ class TestCase extends Orchestra
             include __DIR__.'/Database/Migrations/create_users_table.php',
             include __DIR__.'/../database/migrations/install_enterprise_itsm.php.stub',
             include __DIR__.'/../database/migrations/add_support_mailboxes.php.stub',
+            include __DIR__.'/../database/migrations/add_departments.php.stub',
         ];
 
         collect($migrations)->each(fn ($migration) => $migration->up());

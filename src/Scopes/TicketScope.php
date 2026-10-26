@@ -5,6 +5,7 @@ namespace Coderflex\LaravelTicket\Scopes;
 use Coderflex\LaravelTicket\Contracts\CanManageTickets;
 use Coderflex\LaravelTicket\Enums\Priority;
 use Coderflex\LaravelTicket\Enums\Status;
+use Coderflex\LaravelTicket\Models\Department;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -172,13 +173,18 @@ trait TicketScope
         }
 
         $id = $user->getKey();
+        $departmentIds = Department::agentDepartmentIds($user);
 
-        return $builder->where(function (Builder $query) use ($id) {
+        return $builder->where(function (Builder $query) use ($id, $departmentIds) {
             $query->where($query->qualifyColumn('user_id'), $id)
                 ->orWhere($query->qualifyColumn('affected_user_id'), $id)
                 ->orWhere($query->qualifyColumn('assigned_to'), $id)
                 ->orWhereHas('watchers', fn (Builder $watchers) => $watchers->whereKey($id))
                 ->orWhereHas('assignmentGroup.members', fn (Builder $members) => $members->whereKey($id));
+
+            if ($departmentIds !== []) {
+                $query->orWhereIn($query->qualifyColumn('department_id'), $departmentIds);
+            }
         });
     }
 }

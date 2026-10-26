@@ -395,6 +395,43 @@ Threading matches `In-Reply-To` and `References` against the mailbox ledger, the
 
 Publish and run `add_support_mailboxes` after the enterprise migration.
 
+## Departments
+
+A department is the boundary between IT, HR, facilities, and any other desk that shares this package. Groups, mailboxes, categories, services, and SLA policies can belong to one. An agent added with `addAgent()` can see and update that department's tickets. Someone who implements `CanManageTickets` can still see every department.
+
+```php
+use Coderflex\LaravelTicket\Models\Department;
+
+$hr = Department::query()->create(['name' => 'HR', 'slug' => 'hr']);
+$hr->addAgent($hrAgent);
+$hr->defineType('Case', 'CASE');
+$hr->defineType('Access', 'ACC', requiresApproval: true);
+
+$hr->setCalendar([
+    'monday' => ['start' => '09:00', 'end' => '17:00'],
+    'tuesday' => ['start' => '09:00', 'end' => '17:00'],
+    'wednesday' => ['start' => '09:00', 'end' => '17:00'],
+    'thursday' => ['start' => '09:00', 'end' => '17:00'],
+    'friday' => ['start' => '09:00', 'end' => '17:00'],
+], 'America/Detroit');
+```
+
+`CASE-000001` comes from the department type. IT keeps `INC`, `REQ`, `PRB`, and `CHG`. A catalog item can require its own fields and name the queue that receives the ticket. Pass `service_id` to `TicketDesk::open()`.
+
+Approval chains run in order. The next person stays `waiting` until the current step is approved. A type with `requiresApproval: true` cannot enter `in_progress` until every step is approved. Change tickets still follow that rule.
+
+```php
+$ticket->requestApprovalChain([$manager, $director]);
+$laptop = $onboarding->spawnTask([
+    'title' => 'Laptop',
+    'type' => 'incident',
+    'user_id' => $onboarding->user_id,
+], $desktopGroup);
+$onboarding->transferTo($desktopGroup);
+```
+
+`ServiceDeskReport::forDepartment($hr)` counts only that department. Publish and run `add_departments` after the mailbox migration.
+
 ## Testing
 
 ```bash

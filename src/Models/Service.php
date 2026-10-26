@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int|null $assignment_group_id
+ * @property int|null $department_id
  */
 class Service extends Model
 {
@@ -19,6 +20,7 @@ class Service extends Model
         'slug',
         'description',
         'assignment_group_id',
+        'department_id',
         'is_active',
     ];
 
@@ -29,6 +31,11 @@ class Service extends Model
     public function assignmentGroup(): BelongsTo
     {
         return $this->belongsTo(config('laravel_ticket.models.assignment_group'));
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.department'));
     }
 
     public function configurationItems(): HasMany

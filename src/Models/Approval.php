@@ -5,9 +5,16 @@ namespace Coderflex\LaravelTicket\Models;
 use Coderflex\LaravelTicket\Concerns\UsesConfiguredTable;
 use Coderflex\LaravelTicket\Enums\ApprovalStatus;
 use Coderflex\LaravelTicket\Events\ApprovalDecided;
+use Coderflex\LaravelTicket\Events\ApprovalRequested;
+use Coderflex\LaravelTicket\Exceptions\ApprovalRequired;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $ticket_id
+ * @property int $position
+ * @property string $status
+ */
 class Approval extends Model
 {
     use UsesConfiguredTable;
@@ -17,12 +24,14 @@ class Approval extends Model
         'approver_id',
         'requested_by',
         'status',
+        'position',
         'comment',
         'decided_at',
     ];
 
     protected $casts = [
         'decided_at' => 'datetime',
+        'position' => 'integer',
     ];
 
     public function ticket(): BelongsTo
@@ -47,6 +56,10 @@ class Approval extends Model
 
     public function decide(string $status, ?string $comment = null): self
     {
+        if ((string) $this->status !== ApprovalStatus::PENDING->value) {
+            throw new ApprovalRequired('This approval is not the active step.');
+        }
+
         $this->update([
             'status' => $status,
             'comment' => $comment,
@@ -55,7 +68,28 @@ class Approval extends Model
 
         event(new ApprovalDecided($this));
 
+        if ($status === ApprovalStatus::APPROVED->value) {
+            $this->activateNext();
+        }
+
         return $this;
+    }
+
+    private function activateNext(): void
+    {
+        $next = static::query()
+            ->where('ticket_id', $this->ticket_id)
+            ->where('status', ApprovalStatus::WAITING->value)
+            ->orderBy('position')
+            ->first();
+
+        if (! $next instanceof self) {
+            return;
+        }
+
+        $next->update(['status' => ApprovalStatus::PENDING->value]);
+
+        event(new ApprovalRequested($next));
     }
 
     protected function configuredTable(): string

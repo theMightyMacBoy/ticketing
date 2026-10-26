@@ -33,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $organization_id
  * @property int|null $affected_user_id
  * @property int|null $assignment_group_id
+ * @property int|null $department_id
  * @property int|null $service_id
  * @property int|null $resolution_code_id
  * @property int|null $sla_policy_id
@@ -88,6 +89,7 @@ class Ticket extends Model
         'organization_id',
         'affected_user_id',
         'assignment_group_id',
+        'department_id',
         'service_id',
         'resolution_code_id',
         'mailbox_id',
@@ -134,6 +136,11 @@ class Ticket extends Model
     public function assignmentGroup(): BelongsTo
     {
         return $this->belongsTo(config('laravel_ticket.models.assignment_group'));
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.department'));
     }
 
     public function mailbox(): BelongsTo

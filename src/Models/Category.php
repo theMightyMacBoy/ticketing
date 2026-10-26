@@ -37,6 +37,11 @@ class Category extends Model
         );
     }
 
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.department'));
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');

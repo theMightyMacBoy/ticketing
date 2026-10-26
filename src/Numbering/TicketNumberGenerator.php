@@ -3,13 +3,15 @@
 namespace Coderflex\LaravelTicket\Numbering;
 
 use Coderflex\LaravelTicket\Models\TicketSequence;
+use Coderflex\LaravelTicket\Models\TicketTypeDefinition;
 use Illuminate\Support\Facades\DB;
 
 class TicketNumberGenerator
 {
-    public function next(string $type): string
+    public function next(string $type, ?int $departmentId = null): string
     {
-        $prefix = (string) config('laravel_ticket.numbering.prefixes.'.$type, 'INC');
+        $prefix = TicketTypeDefinition::resolvePrefix($type, $departmentId)
+            ?? (string) config('laravel_ticket.numbering.prefixes.'.$type, 'INC');
         $pad = (int) config('laravel_ticket.numbering.pad', 6);
 
         $current = DB::transaction(function () use ($prefix) {

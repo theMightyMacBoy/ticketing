@@ -3,18 +3,32 @@
 namespace Coderflex\LaravelTicket\Reporting;
 
 use Coderflex\LaravelTicket\Enums\Status;
+use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\Ticket;
+use Illuminate\Database\Eloquent\Builder;
 
 class ServiceDeskReport
 {
+    private ?int $departmentId = null;
+
+    public function forDepartment(Department|int $department): self
+    {
+        $report = clone $this;
+        $report->departmentId = $department instanceof Department
+            ? (int) $department->getKey()
+            : $department;
+
+        return $report;
+    }
+
     public function backlog(): int
     {
-        return Ticket::query()->whereIn('status', Status::active())->count();
+        return $this->tickets()->whereIn('status', Status::active())->count();
     }
 
     public function breached(): int
     {
-        return Ticket::query()
+        return $this->tickets()
             ->where(function ($query) {
                 $query->where('response_breached', true)
                     ->orWhere('resolution_breached', true);
@@ -29,7 +43,7 @@ class ServiceDeskReport
      */
     public function slaAttainment(): ?float
     {
-        $finished = Ticket::query()->whereIn('status', [
+        $finished = $this->tickets()->whereIn('status', [
             Status::RESOLVED->value,
             Status::CLOSED->value,
         ]);
@@ -47,7 +61,7 @@ class ServiceDeskReport
 
     public function meanTimeToResolveMinutes(): ?float
     {
-        $samples = Ticket::query()
+        $samples = $this->tickets()
             ->whereNotNull('resolved_at')
             ->get(['created_at', 'resolved_at']);
 
@@ -83,11 +97,25 @@ class ServiceDeskReport
      */
     private function volume(string $column): array
     {
-        return Ticket::query()
+        return $this->tickets()
             ->selectRaw($column.', COUNT(*) as aggregate')
             ->groupBy($column)
             ->pluck('aggregate', $column)
             ->map(fn ($count) => (int) $count)
             ->all();
+    }
+
+    /**
+     * @return Builder<Ticket>
+     */
+    private function tickets(): Builder
+    {
+        $query = Ticket::query();
+
+        if ($this->departmentId !== null) {
+            $query->where('department_id', $this->departmentId);
+        }
+
+        return $query;
     }
 }

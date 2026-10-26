@@ -43,6 +43,7 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
                 'add_assigned_to_column_into_tickets_table',
                 'install_enterprise_itsm',
                 'add_support_mailboxes',
+                'add_departments',
             );
     }
 

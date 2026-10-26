@@ -8,6 +8,22 @@ use RuntimeException;
 
 class BusinessHours
 {
+    /**
+     * @var array<string, mixed>|null
+     */
+    private ?array $calendar = null;
+
+    /**
+     * @param  array<string, mixed>|null  $calendar
+     */
+    public function using(?array $calendar): self
+    {
+        $copy = clone $this;
+        $copy->calendar = $calendar;
+
+        return $copy;
+    }
+
     public function addMinutes(CarbonInterface $start, int $minutes): Carbon
     {
         if ($minutes <= 0) {
@@ -151,8 +167,11 @@ class BusinessHours
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @return array<string, mixed>
+     */
     private function config(): array
     {
-        return config('laravel_ticket.business_hours', []);
+        return $this->calendar ?? config('laravel_ticket.business_hours', []);
     }
 }

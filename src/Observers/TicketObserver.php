@@ -12,6 +12,8 @@ use Coderflex\LaravelTicket\Events\TicketAssigned;
 use Coderflex\LaravelTicket\Events\TicketOpened;
 use Coderflex\LaravelTicket\Events\TicketSlaBreached;
 use Coderflex\LaravelTicket\Events\TicketStatusChanged;
+use Coderflex\LaravelTicket\Models\AssignmentGroup;
+use Coderflex\LaravelTicket\Models\Service;
 use Coderflex\LaravelTicket\Models\Ticket;
 use Coderflex\LaravelTicket\Numbering\TicketNumberGenerator;
 use Coderflex\LaravelTicket\Sla\PriorityMatrix;
@@ -39,9 +41,13 @@ class TicketObserver
         $ticket->channel ??= Channel::PORTAL->value;
         $ticket->priority ??= $this->matrix->calculate((string) $ticket->impact, (string) $ticket->urgency);
         $ticket->created_at ??= now();
+        $this->inheritDepartment($ticket);
 
         if (! $ticket->ticket_number) {
-            $ticket->ticket_number = $this->numbers->next((string) $ticket->type);
+            $ticket->ticket_number = $this->numbers->next(
+                (string) $ticket->type,
+                $ticket->department_id ? (int) $ticket->department_id : null
+            );
         }
 
         $this->sla->initialize($ticket);
@@ -115,5 +121,32 @@ class TicketObserver
         }
 
         $ticket->auditFrom = [];
+    }
+
+    private function inheritDepartment(Ticket $ticket): void
+    {
+        if ($ticket->department_id) {
+            return;
+        }
+
+        if ($ticket->assignment_group_id) {
+            $group = AssignmentGroup::query()->find($ticket->assignment_group_id);
+
+            if ($group instanceof AssignmentGroup && $group->department_id) {
+                $ticket->department_id = $group->department_id;
+
+                return;
+            }
+        }
+
+        if (! $ticket->service_id) {
+            return;
+        }
+
+        $service = Service::query()->find($ticket->service_id);
+
+        if ($service instanceof Service && $service->department_id) {
+            $ticket->department_id = $service->department_id;
+        }
     }
 }

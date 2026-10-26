@@ -5,6 +5,7 @@ namespace Coderflex\LaravelTicket\Models;
 use Coderflex\LaravelTicket\Concerns\UsesConfiguredTable;
 use Coderflex\LaravelTicket\Exceptions\MailboxMisconfigured;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
  * @property string|null $client_id
  * @property string|null $client_secret
  * @property bool $is_active
+ * @property int|null $department_id
  * @property int|null $delete_read_after_days
  * @property Carbon|null $last_synced_at
  */
@@ -30,6 +32,7 @@ class Mailbox extends Model
         'client_id',
         'client_secret',
         'is_active',
+        'department_id',
         'delete_read_after_days',
     ];
 
@@ -51,6 +54,11 @@ class Mailbox extends Model
                 Cache::forget($mailbox->tokenCacheKey());
             }
         });
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.department'));
     }
 
     public function groups(): HasMany

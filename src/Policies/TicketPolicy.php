@@ -4,6 +4,7 @@ namespace Coderflex\LaravelTicket\Policies;
 
 use Coderflex\LaravelTicket\Contracts\CanManageTickets;
 use Coderflex\LaravelTicket\Enums\ApprovalStatus;
+use Coderflex\LaravelTicket\Models\Department;
 use Coderflex\LaravelTicket\Models\Ticket;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,7 +31,7 @@ class TicketPolicy
             return true;
         }
 
-        return $this->inGroup($user, $ticket);
+        return $this->inGroup($user, $ticket) || $this->inDepartment($user, $ticket);
     }
 
     public function update(Model $user, Ticket $ticket): bool
@@ -43,7 +44,7 @@ class TicketPolicy
             return true;
         }
 
-        return $this->inGroup($user, $ticket);
+        return $this->inGroup($user, $ticket) || $this->inDepartment($user, $ticket);
     }
 
     public function addInternalNote(Model $user, Ticket $ticket): bool
@@ -88,5 +89,14 @@ class TicketPolicy
         return $ticket->assignmentGroup()
             ->whereHas('members', fn ($query) => $query->whereKey($user->getKey()))
             ->exists();
+    }
+
+    private function inDepartment(Model $user, Ticket $ticket): bool
+    {
+        if (! $ticket->department_id) {
+            return false;
+        }
+
+        return in_array((int) $ticket->department_id, Department::agentDepartmentIds($user), true);
     }
 }
