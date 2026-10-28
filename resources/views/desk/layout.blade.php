@@ -13,6 +13,13 @@
     $accountEmail = is_object($account) ? (string) $account->getAttribute('email') : '';
     $canConfigure = $account instanceof \Illuminate\Database\Eloquent\Model
         && \Coderflex\LaravelTicket\Http\DeskAccess::canConfigure($account);
+    $nameParts = preg_split('/\s+/', trim($accountName)) ?: [];
+    $initials = strtoupper(mb_substr((string) ($nameParts[0] ?? ''), 0, 1));
+
+    if (count($nameParts) > 1) {
+        $initials .= strtoupper(mb_substr((string) $nameParts[count($nameParts) - 1], 0, 1));
+    }
+
     $deskNav = 'queue';
 
     if (request()->routeIs('laravel-ticket.catalog')) {
@@ -57,11 +64,20 @@
             </nav>
         @endif
         <div class="rail-foot">
-            @if ($accountName !== '')
-                <p class="who">{{ $accountName }}</p>
-            @endif
-            @if ($accountEmail !== '')
-                <p class="who-mail">{{ $accountEmail }}</p>
+            @if ($accountName !== '' || $accountEmail !== '')
+                <div class="rail-person">
+                    @if ($initials !== '')
+                        <span class="avatar" aria-hidden="true">{{ $initials }}</span>
+                    @endif
+                    <div>
+                        @if ($accountName !== '')
+                            <p class="who">{{ $accountName }}</p>
+                        @endif
+                        @if ($accountEmail !== '')
+                            <p class="who-mail">{{ $accountEmail }}</p>
+                        @endif
+                    </div>
+                </div>
             @endif
             <button class="theme-toggle" type="button" data-theme-toggle>
                 <span class="when-light">Dark mode</span>

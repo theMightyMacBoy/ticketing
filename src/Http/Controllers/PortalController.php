@@ -40,7 +40,7 @@ class PortalController
 
         Gate::authorize('view', $record);
 
-        $messages = $record->messages()->with('attachments')->oldest('id')->get()->filter(function ($message) {
+        $messages = $record->messages()->with(['attachments', 'user'])->oldest('id')->get()->filter(function ($message) {
             return $message instanceof Message
                 && $message->visibility === MessageVisibility::PUBLIC->value;
         });

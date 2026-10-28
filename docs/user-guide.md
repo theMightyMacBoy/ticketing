@@ -27,7 +27,7 @@ The first time a company sign-in succeeds, the desk creates your account. Being 
 
 **Sign out** is at the bottom of the rail when this sign-in screen is in use.
 
-**Dark mode** sits with your name on the rail, and on the sign-in page above the form. It switches the desk between the paper background and a warm dark background. The choice is remembered in this browser. Until you choose, the desk follows the color scheme of your device. Choose **Light mode** to switch back.
+**Dark mode** sits with your name on the rail, and on the sign-in page above the form. It switches the desk between the light workspace and a dark workspace. The choice is remembered in this browser. Until you choose, the desk follows the color scheme of your device. Choose **Light mode** to switch back.
 
 ## Requesters
 
@@ -104,7 +104,7 @@ The ticket page shows the number, title, status, and the conversation.
 
 **Public reply** is sent to the requester when the ticket has a mailbox and notifications can be delivered. The subject includes the ticket number. The reply is not sent when you are the requester, when the destination is the same address as the mailbox, or when the ticket has no mailbox. Formatting and photos are included in that email. Other files are attached to it. A reply with no formatting is sent as text.
 
-**Internal note** stays on the ticket. It is not emailed and it is not shown in the requester's portal. The note is drawn with a warm edge so you can tell it from the public conversation. You can format a note, place a photo in it, and attach files. The requester cannot open a photo that was added on an internal note.
+**Internal note** stays on the ticket. It is not emailed and it is not shown in the requester's portal. The note sits on a yellow card so you can tell it from the public conversation. You can format a note, place a photo in it, and attach files. The requester cannot open a photo that was added on an internal note.
 
 **Assign** takes the assignee's email. That person is notified when mail notifications are on.
 

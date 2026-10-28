@@ -28,7 +28,7 @@ class TicketController
         Gate::authorize('view', $record);
 
         $internal = Gate::forUser($actor)->allows('addInternalNote', $record);
-        $messages = $record->messages()->with('attachments')->oldest('id')->get()->filter(function ($message) use ($internal) {
+        $messages = $record->messages()->with(['attachments', 'user'])->oldest('id')->get()->filter(function ($message) use ($internal) {
             return $message instanceof Message && ($internal || $message->visibility === 'public');
         });
 

@@ -84,6 +84,35 @@ class Message extends Model
         return $this->hasMany(config('laravel_ticket.models.attachment'));
     }
 
+    public function displayName(): string
+    {
+        if (is_string($this->sender_name) && $this->sender_name !== '') {
+            return $this->sender_name;
+        }
+
+        $user = $this->relationLoaded('user') ? $this->getRelation('user') : $this->user()->first();
+
+        if ($user instanceof Model) {
+            $name = $user->getAttribute('name');
+
+            if (is_string($name) && $name !== '') {
+                return $name;
+            }
+
+            $email = $user->getAttribute('email');
+
+            if (is_string($email) && $email !== '') {
+                return $email;
+            }
+        }
+
+        if (is_string($this->sender_email) && $this->sender_email !== '') {
+            return $this->sender_email;
+        }
+
+        return 'Agent';
+    }
+
     public function scopePublic(Builder $builder): Builder
     {
         return $builder->where('visibility', MessageVisibility::PUBLIC->value);

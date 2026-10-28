@@ -4,6 +4,7 @@ All notable changes to `laravel-ticket` will be documented in this file.
 
 ## Unreleased
 
+- Restyle the desk, portal, and sign-in screen as a help-desk workspace: a white navigation column, a ticket list, conversation cards, yellow internal notes, and a properties panel.
 - Public replies and internal notes accept formatted text, photos in the text, and file attachments. Photos are stored on the ticket and served only to people who can read that message. A formatted public reply is emailed as HTML with the photos embedded. Other files are attached to that email. A reply with no formatting stays plain text. Erasing a requester also deletes stored photos and files.
 - Add dark mode. The desk and the sign-in page follow the device color scheme, and **Dark mode** on the rail stores a light or dark choice in the browser.
 - Add an admin guide and a user guide under `docs/`.

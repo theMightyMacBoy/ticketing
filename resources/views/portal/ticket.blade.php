@@ -12,12 +12,28 @@
         @endif
     </ul>
     @if ($ticket->message)
-        <p class="brief">{{ $ticket->message }}</p>
-    @endif
-    @foreach ($messages as $message)
         <article class="entry">
             <header>
-                <span>{{ $message->sender_name ?: $message->sender_email }}</span>
+                <span class="avatar" aria-hidden="true">{{ strtoupper(mb_substr((string) ($ticket->requester_email ?: 'R'), 0, 1)) }}</span>
+                <span class="entry-who">
+                    <strong>{{ $ticket->requester_email ?: 'Requester' }}</strong>
+                    <span class="channel">Public</span>
+                </span>
+            </header>
+            <p class="body">{{ $ticket->message }}</p>
+        </article>
+    @endif
+    @foreach ($messages as $message)
+        @php
+            $speaker = $message->displayName();
+        @endphp
+        <article class="entry">
+            <header>
+                <span class="avatar" aria-hidden="true">{{ strtoupper(mb_substr($speaker, 0, 1)) }}</span>
+                <span class="entry-who">
+                    <strong>{{ $speaker }}</strong>
+                    <span class="channel">Public</span>
+                </span>
                 @if ($message->created_at)
                     <time datetime="{{ $message->created_at->toIso8601String() }}">{{ $message->created_at->timezone(config('app.timezone'))->format('M j, Y g:i a') }}</time>
                 @endif
