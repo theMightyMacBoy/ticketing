@@ -3,9 +3,12 @@
 namespace Coderflex\LaravelTicket\Models;
 
 use Coderflex\LaravelTicket\Concerns\HasVisibility;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
 {
@@ -15,7 +18,7 @@ class Category extends Model
     /**
      * The attributes that aren't mass assignable.
      *
-     * @var array<string>|bool
+     * @var array<string>
      */
     protected $guarded = [];
 
@@ -24,7 +27,34 @@ class Category extends Model
      */
     public function tickets(): BelongsToMany
     {
-        return $this->belongsToMany(config('laravel_ticket.models.ticket'));
+        $table = config('laravel_ticket.table_names.category_ticket');
+
+        return $this->belongsToMany(
+            config('laravel_ticket.models.ticket'),
+            $table['table'],
+            $table['columns']['category_foreign_id'],
+            $table['columns']['ticket_foreign_id'],
+        );
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(config('laravel_ticket.models.department'));
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function scopeRoots(Builder $builder): Builder
+    {
+        return $builder->whereNull('parent_id');
     }
 
     /**

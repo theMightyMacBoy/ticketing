@@ -3,6 +3,7 @@
 namespace Coderflex\LaravelTicket\Tests\Models;
 
 use Coderflex\LaravelTicket\Concerns\HasTickets;
+use Coderflex\LaravelTicket\Contracts\CanManageTickets;
 use Coderflex\LaravelTicket\Contracts\CanUseTickets;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Auth\MustVerifyEmail;
@@ -14,8 +15,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\Access\Authorizable;
 
-class User extends Model implements AuthenticatableContract, AuthorizableContract, CanResetPasswordContract, CanUseTickets
+class User extends Model implements AuthenticatableContract, AuthorizableContract, CanManageTickets, CanResetPasswordContract, CanUseTickets
 {
+    public bool $managesTickets = false;
+
+    public function canManageTickets(): bool
+    {
+        return $this->managesTickets;
+    }
+
     use Authenticatable,
         Authorizable,
         CanResetPassword,

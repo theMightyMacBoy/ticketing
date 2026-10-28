@@ -9,6 +9,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/coderflex/laravel-ticket.svg?style=flat-square)](https://packagist.org/packages/coderflex/laravel-ticket)
 
 - [Introduction](#introduction)
+- [Documentation](#documentation)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Preparing your model](#preparing-your-model)
@@ -23,6 +24,8 @@
   - [Ticket Scopes](#ticket-scopes)
   - [Category \& Label Scopes](#category--label-scopes)
 - [Handling File Upload](#handling-file-upload)
+- [Desk and portal](#desk-and-portal)
+- [Sign-in](#sign-in)
 - [Testing](#testing)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
@@ -31,7 +34,14 @@
 - [License](#license)
 
 ## Introduction
-__Laravel Ticket__ package, is a Backend API to handle your ticket system, with an easy way.
+Laravel Ticket is a multi-department service desk. It stores incidents, service requests, problems, and changes, and it serves an agent desk and a requester portal. Shared Exchange Online mailboxes open tickets. Public replies go out through the application's SMTP relay.
+
+The models raise events (`TicketOpened`, `TicketStatusChanged`, `TicketAssigned`, `TicketSlaBreached`, `ApprovalRequested`, `ApprovalDecided`) so you can add Slack or a webhook beside the built-in mail. Schedule `php artisan tickets:evaluate-slas` every minute to flag breaches while a ticket is still open. `tickets:fetch-mail` and `tickets:purge-mail` run on their own schedule when `laravel_ticket.mail.schedule` is true.
+
+## Documentation
+
+- [Admin guide](docs/admin-guide.md) covers installation, every configuration option, departments, mailboxes, sign-in, manager visibility, and privacy.
+- [User guide](docs/user-guide.md) covers the desk for requesters, agents, and managers.
 
 ## Installation
 
@@ -288,6 +298,194 @@ class Ticket extends \Coderflex\LaravelTicket\Models\Ticket implements HasMedia
 ```
 
 The rest of the implementation, head to [the docs](https://spatie.be/docs/laravel-medialibrary/v10/introduction) of spatie package to know more.
+
+## Enterprise service desk
+
+Open a ticket through `TicketDesk`. Priority is scored from impact and urgency unless you pass one yourself. The row receives a uuid and a number such as `INC-000001`, `REQ-000001`, `PRB-000001`, or `CHG-000001`.
+
+```php
+use Coderflex\LaravelTicket\Desk\TicketDesk;
+
+$ticket = app(TicketDesk::class)->open([
+    'title' => 'VPN is down',
+    'message' => 'The remote gateway stopped answering.',
+    'type' => 'incident', // incident, service_request, problem, change
+    'impact' => 'high',   // low, medium, high, critical
+    'urgency' => 'high',
+    'channel' => 'portal',
+    'organization_id' => $organization->id,
+    'assignment_group_id' => $group->id,
+    'service_id' => $service->id,
+], $requestUser);
+```
+
+Move the ticket with the workflow methods. Illegal moves throw `InvalidTicketTransition`. A change cannot enter `in_progress` until someone approves it (`ApprovalRequired`). Resolving or closing throws `MissingCustomFields` when a required custom field is empty.
+
+```php
+$ticket->assignTo($agent);
+$ticket->assignGroup($networkGroup);
+$ticket->start();                 // in_progress
+$ticket->pend('customer');        // pauses the SLA
+$ticket->resolve($resolutionCode); // or close(), cancel(), archive()
+$ticket->requestApproval($manager)->approve('Window approved.');
+```
+
+Status is one of `new`, `open`, `in_progress`, `pending`, `resolved`, `closed`, `cancelled`, `archived`. `isClosed()` is true only for `closed`. Pending reasons are `customer`, `vendor`, `change`, and `other`.
+
+Public replies and internal notes are different records. A public reply from someone other than the requester stamps the first-response clock. Notes do not. Locked, archived, and cancelled tickets reject public replies; the assignee and any user that implements `CanManageTickets` (or the `laravel_ticket.agents.callback` config) can still reply to a locked ticket.
+
+```php
+$ticket->messageAsUser($agent, 'We failed the link over.');
+$ticket->note('Carrier ticket is ETTR 16:00.', $agent);
+```
+
+Link related work, record time, and attach a file:
+
+```php
+$problem->addChild($incident);
+$incident->markDuplicateOf($canonical);
+$incident->logWork(30, 'Rebooted the concentrator.', $agent);
+$incident->attachFile($request->file('log'), $agent);
+$incident->setCustom('hostname', 'vpn-edge-01');
+```
+
+Seeded SLA policies cover critical (15m / 4h), high (1h / 8h), normal and medium (4h / 24h), and low (8h / 48h). A policy with a matching ticket type wins over the priority default. Policies can count minutes on the business calendar in `config/laravel_ticket.php`. Entering `pending` pauses the clock and pushes both due dates when work resumes.
+
+Queues and reporting:
+
+```php
+Ticket::query()->visibleTo($user)->active()->get();
+$report = app(\Coderflex\LaravelTicket\Reporting\ServiceDeskReport::class);
+$report->backlog();
+$report->slaAttainment();
+$report->meanTimeToResolveMinutes();
+```
+
+`TicketPolicy` is registered for the ticket model. Requesters, affected users, watchers, assignees, and assignment-group members can view. Agents, assignees, and group members can update. Only agents can delete. Implement `Coderflex\LaravelTicket\Contracts\CanManageTickets` on the user model, or return true from `laravel_ticket.agents.callback`, to mark an agent.
+
+Every status and assignment change is written to `ticket_activities`. Categories can be nested with `parent_id`. Services can point at an assignment group, and configuration items attach to both a service and a ticket.
+
+If you already published the original migrations, publish and run `install_enterprise_itsm` as well. It widens `tickets.message` to text and adds the service-desk tables.
+
+## Shared mailboxes
+
+A mailbox is one Exchange Online address. Several assignment groups can connect to it. Exactly one of those groups is primary. Mail that does not match an existing ticket opens on the primary group. A reply stays on the ticket it belongs to, even after that ticket moves to another group that shares the address.
+
+Inbound mail uses Microsoft Graph application permissions (client credentials), not a user's password. The app registration needs `Mail.Read`. A mailbox that deletes old mail also needs `Mail.ReadWrite`. If the tenant limits mailbox access, add an application access policy for each address. Credentials can live on the mailbox or in `laravel_ticket.mail.graph`, which reads `TICKET_GRAPH_TENANT_ID`, `TICKET_GRAPH_CLIENT_ID`, and `TICKET_GRAPH_CLIENT_SECRET`.
+
+Outbound mail does not go through Exchange Online. Replies use the Laravel mailer (`MAIL_MAILER=smtp` for a relay). The From address is the shared mailbox, for every group connected to it. Internal notes are not sent. A message from the requester is not sent back to them.
+
+```php
+use Coderflex\LaravelTicket\Models\AssignmentGroup;
+use Coderflex\LaravelTicket\Models\Mailbox;
+
+$mailbox = Mailbox::query()->create([
+    'name' => 'Help Desk',
+    'address' => 'help@contoso.com',
+    'tenant_id' => config('laravel_ticket.mail.graph.tenant_id'),
+    'client_id' => config('laravel_ticket.mail.graph.client_id'),
+    'client_secret' => config('laravel_ticket.mail.graph.client_secret'),
+    'delete_read_after_days' => 30, // omit to keep read mail in the inbox
+]);
+
+$network = AssignmentGroup::query()->create(['name' => 'Network', 'slug' => 'network']);
+$desktop = AssignmentGroup::query()->create(['name' => 'Desktop', 'slug' => 'desktop']);
+
+$network->connectMailbox($mailbox, true); // primary: new mail opens here
+$desktop->connectMailbox($mailbox);       // replies still land on the right ticket
+```
+
+`tickets:fetch-mail` runs every minute when `laravel_ticket.mail.schedule` is true. Unknown senders need `laravel_ticket.mail.system_user_id`, or a `resolve_sender` callback that returns a user id. The customer address is stored on `requester_email` and `sender_email` either way.
+
+Threading matches `In-Reply-To` and `References` against the mailbox ledger, then a ticket number in the subject such as `[INC-000001]`. The same Graph message is stored once.
+
+`tickets:purge-mail` runs at 00:00 UTC when scheduling is on. For each mailbox with `delete_read_after_days` set, it deletes read inbox messages received before that many UTC midnights ago. A 7-day rule running on October 25 deletes read mail received before October 18 00:00 UTC. Unread mail stays. Mailboxes with no rule are left alone. One run deletes up to `laravel_ticket.mail.purge_limit` messages per mailbox (2000 by default) and continues the next night.
+
+Publish and run `add_support_mailboxes` after the enterprise migration.
+
+## Departments
+
+A department is the boundary between IT, HR, facilities, and any other desk that shares this package. Groups, mailboxes, categories, services, and SLA policies can belong to one. An agent added with `addAgent()` can see and update that department's tickets, including confidential ones. Someone who implements `CanManageTickets` can see every non-confidential ticket.
+
+```php
+use Coderflex\LaravelTicket\Models\Department;
+
+$hr = Department::query()->create(['name' => 'HR', 'slug' => 'hr']);
+$hr->addAgent($hrAgent);
+$hr->defineType('Case', 'CASE');
+$hr->defineType('Access', 'ACC', requiresApproval: true);
+
+$hr->setCalendar([
+    'monday' => ['start' => '09:00', 'end' => '17:00'],
+    'tuesday' => ['start' => '09:00', 'end' => '17:00'],
+    'wednesday' => ['start' => '09:00', 'end' => '17:00'],
+    'thursday' => ['start' => '09:00', 'end' => '17:00'],
+    'friday' => ['start' => '09:00', 'end' => '17:00'],
+], 'America/Detroit');
+```
+
+`CASE-000001` comes from the department type. IT keeps `INC`, `REQ`, `PRB`, and `CHG`. A catalog item can require its own fields and name the queue that receives the ticket. Pass `service_id` to `TicketDesk::open()`.
+
+Approval chains run in order. The next person stays `waiting` until the current step is approved. A type with `requiresApproval: true` cannot enter `in_progress` until every step is approved. Change tickets still follow that rule.
+
+```php
+$ticket->requestApprovalChain([$manager, $director]);
+$laptop = $onboarding->spawnTask([
+    'title' => 'Laptop',
+    'type' => 'incident',
+    'user_id' => $onboarding->user_id,
+], $desktopGroup);
+$onboarding->transferTo($desktopGroup);
+```
+
+`ServiceDeskReport::forDepartment($hr)` counts only that department. Publish and run `add_departments` after the mailbox migration.
+
+A platform admin who implements `CanManageTickets` can see every non-confidential ticket. A confidential ticket stays with the requester, the assignee, watchers, the support group, that department's agents, and a pending approver.
+
+## Desk and portal
+
+Agents work at `/desk`. Requesters use `/portal`. Both routes use the `web` and `auth` middleware, and both use the same desk layout. Change `routes.desk`, `routes.portal`, and `routes.middleware` in the published config.
+
+The queue searches title, number, requester, and the opening message. On a ticket, an agent can send a formatted public reply, leave a formatted internal note, embed a photo, attach files, assign by email, transfer to a department or group, change status, and approve. A requester sees only their own tickets, opens a catalog item, and replies in the portal with the same formatting, photos, and files. Setup and the directory are limited to department agents and platform admins.
+
+```bash
+php artisan tickets:seed-demo
+```
+
+That command creates IT, HR, and Facilities, three inactive mailboxes (`help@example.com`, `hr@example.com`, `facilities@example.com`), catalog items, and these accounts. The password is `password`.
+
+- `ada@example.com` files the sample tickets
+- `it.agent@example.com`, `hr.agent@example.com`, and `facilities.agent@example.com` work their queues
+- `manager@example.com` is a directory contact
+
+The sample tickets are "VPN is down for Ada", the confidential HR case "Payroll question", and "Badge for the west door".
+
+Set `TICKET_DEMO_SEED=true` before `migrate` to insert the departments, groups, calendars, catalog, and inactive mailboxes during the migration. The migration does not create users, because the users table may not exist yet. Set `TICKET_DEMO_LOGIN=true` or `TICKET_AUTH_LOGIN=true` to expose `/desk/login`. Leave both false when the host application has its own gate.
+
+## Sign-in
+
+`/desk/login` asks for an email address and then decides.
+
+- A domain on an active identity provider continues at that provider. The address is sent as `login_hint`. The provider must speak OpenID Connect and sign ID tokens with RS256. Register the redirect URI `/desk/login/sso/{slug}/callback`.
+- A local account continues to a password page.
+- An unknown address that is not on a sign-in domain is rejected.
+- In the directory, "Local password" keeps a break-glass account on a company domain. "Single sign-on" pins that address to the provider for its domain. "Detect from the email domain" removes the override.
+
+Add the provider on the setup page: name, email domain, issuer, client id, and client secret. For Entra ID the issuer is `https://login.microsoftonline.com/{tenant}/v2.0`. This app registration is separate from the mailbox Graph app. The ID token must include `email`, `preferred_username`, or `upn`, and that address must be the one the person typed. The first successful sign-in creates the account. Department agent rights still come from the directory.
+
+When someone signs in, the desk stores their manager. An ID token claim named `manager_email` (or `manager`, when that value is an email) is used first. For an Entra issuer, turn on "Sync each person's manager from Microsoft Graph" and grant the sign-in app application permission `User.Read.All`. Graph is asked for `/users/{id}/manager`. A refused lookup does not block sign-in and does not erase a manager already stored. Direct reports are the people whose synced manager email is the signed-in account.
+
+That manager then has two queues: **Tickets opened by my team** lists every ticket those people filed, including confidential tickets. **Open tickets by my team** is the same list without resolved, closed, cancelled, or archived tickets. The manager can open a ticket. Agent actions stay with the department.
+
+A support group can block that view. On setup, "Block the requester's manager" keeps tickets currently on that group out of both team queues, and the manager cannot open them through the team relationship. An HR queue uses this so a case between an employee and HR stays with HR. Someone who works that group, or is assigned the ticket, can still open it. The demo HR Employee Relations group is blocked. Publish and run `add_group_manager_block`.
+
+Publish and run `add_single_sign_on`, then `add_team_managers`.
+
+When `laravel_ticket.notifications.mail` is true, opening a ticket emails the requester the ticket number. Assignment, an approval request, and an SLA breach are emailed too. A failed mailbox fetch stores `last_error` and emails `TICKET_MAIL_ALERT_TO`. Fetch follows Graph pages up to `mail.fetch_limit` (100) and, if Graph rejects `isRead eq false` with HTTP 400, retries that page once without the filter.
+
+`GET /desk/privacy/export` and `POST /desk/privacy/erase` export or erase tickets for one email. A platform admin does not erase another department's confidential tickets. The requester can erase their own, including confidential cases. Ticket numbers are kept. The body becomes "Erased request" and replies become `[erased]`.
+
+Publish and run `add_launch_desk` after `add_departments`. `seed_demo_desk` is the migration that honors `TICKET_DEMO_SEED`.
 
 ## Testing
 

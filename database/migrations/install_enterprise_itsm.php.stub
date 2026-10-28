@@ -1,0 +1,313 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        $tickets = config('laravel_ticket.table_names.tickets', 'tickets');
+        $messages = config('laravel_ticket.table_names.messages.table', 'messages');
+        $categories = config('laravel_ticket.table_names.categories', 'categories');
+        $organizations = config('laravel_ticket.table_names.organizations', 'organizations');
+        $organizationUser = config('laravel_ticket.table_names.organization_user', 'organization_user');
+        $groups = config('laravel_ticket.table_names.assignment_groups', 'assignment_groups');
+        $groupUser = config('laravel_ticket.table_names.assignment_group_user', 'assignment_group_user');
+        $policies = config('laravel_ticket.table_names.sla_policies', 'sla_policies');
+        $sequences = config('laravel_ticket.table_names.ticket_sequences', 'ticket_sequences');
+        $activities = config('laravel_ticket.table_names.ticket_activities', 'ticket_activities');
+        $links = config('laravel_ticket.table_names.ticket_links', 'ticket_links');
+        $approvals = config('laravel_ticket.table_names.approvals', 'approvals');
+        $watchers = config('laravel_ticket.table_names.ticket_watchers', 'ticket_watchers');
+        $workLogs = config('laravel_ticket.table_names.work_logs', 'work_logs');
+        $resolutionCodes = config('laravel_ticket.table_names.resolution_codes', 'resolution_codes');
+        $services = config('laravel_ticket.table_names.services', 'services');
+        $items = config('laravel_ticket.table_names.configuration_items', 'configuration_items');
+        $itemTicket = config('laravel_ticket.table_names.configuration_item_ticket', 'configuration_item_ticket');
+        $attachments = config('laravel_ticket.table_names.attachments', 'attachments');
+        $fields = config('laravel_ticket.table_names.custom_field_definitions', 'custom_field_definitions');
+
+        Schema::create($organizations, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->string('domain')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create($organizationUser, function (Blueprint $table) use ($organizations) {
+            $table->id();
+            $table->foreignId('organization_id')->constrained($organizations)->cascadeOnDelete();
+            $table->foreignId('user_id');
+            $table->string('role')->default('member');
+            $table->timestamps();
+            $table->unique(['organization_id', 'user_id']);
+        });
+
+        Schema::create($groups, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create($groupUser, function (Blueprint $table) use ($groups) {
+            $table->id();
+            $table->foreignId('assignment_group_id')->constrained($groups)->cascadeOnDelete();
+            $table->foreignId('user_id');
+            $table->timestamps();
+            $table->unique(['assignment_group_id', 'user_id']);
+        });
+
+        Schema::create($resolutionCodes, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->boolean('is_visible')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create($policies, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('priority')->nullable()->index();
+            $table->string('ticket_type')->nullable()->index();
+            $table->unsignedInteger('response_minutes');
+            $table->unsignedInteger('resolution_minutes');
+            $table->boolean('use_business_hours')->default(false);
+            $table->boolean('is_default')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create($services, function (Blueprint $table) use ($groups) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->foreignId('assignment_group_id')->nullable()->constrained($groups)->nullOnDelete();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create($items, function (Blueprint $table) use ($services) {
+            $table->id();
+            $table->foreignId('service_id')->nullable()->constrained($services)->nullOnDelete();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->string('type')->default('application');
+            $table->string('status')->default('active');
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create($sequences, function (Blueprint $table) {
+            $table->id();
+            $table->string('prefix')->unique();
+            $table->unsignedBigInteger('current')->default(0);
+            $table->timestamps();
+        });
+
+        Schema::create($fields, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('key')->unique();
+            $table->string('ticket_type')->nullable()->index();
+            $table->string('data_type')->default('string');
+            $table->json('options')->nullable();
+            $table->boolean('is_required')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::table($tickets, function (Blueprint $table) use ($organizations, $groups, $services, $resolutionCodes, $policies) {
+            $table->string('ticket_number')->nullable()->after('uuid');
+            $table->string('type')->default('incident')->after('user_id');
+            $table->string('impact')->default('low')->after('priority');
+            $table->string('urgency')->default('low')->after('impact');
+            $table->string('channel')->default('portal')->after('urgency');
+            $table->string('pending_reason')->nullable()->after('status');
+            $table->boolean('is_major')->default(false)->after('is_locked');
+            $table->foreignId('organization_id')->nullable()->constrained($organizations)->nullOnDelete();
+            $table->foreignId('affected_user_id')->nullable()->index();
+            $table->foreignId('assignment_group_id')->nullable()->constrained($groups)->nullOnDelete();
+            $table->foreignId('service_id')->nullable()->constrained($services)->nullOnDelete();
+            $table->foreignId('resolution_code_id')->nullable()->constrained($resolutionCodes)->nullOnDelete();
+            $table->foreignId('sla_policy_id')->nullable()->constrained($policies)->nullOnDelete();
+            $table->timestamp('response_due_at')->nullable();
+            $table->timestamp('resolution_due_at')->nullable();
+            $table->timestamp('first_response_at')->nullable();
+            $table->timestamp('resolved_at')->nullable();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('sla_paused_at')->nullable();
+            $table->unsignedInteger('sla_paused_minutes')->default(0);
+            $table->boolean('response_breached')->default(false);
+            $table->boolean('resolution_breached')->default(false);
+            $table->json('custom_attributes')->nullable();
+            $table->index('status');
+            $table->index('priority');
+            $table->index('type');
+            $table->index('assigned_to');
+        });
+
+        $this->backfillTickets($tickets, $sequences);
+        $this->widenMessage($tickets);
+
+        Schema::table($tickets, function (Blueprint $table) {
+            $table->unique('ticket_number');
+        });
+
+        Schema::table($messages, function (Blueprint $table) {
+            $table->string('visibility')->default('public')->after('message');
+            $table->index('visibility');
+        });
+
+        Schema::table($categories, function (Blueprint $table) {
+            $table->foreignId('parent_id')->nullable()->index();
+        });
+
+        Schema::create($activities, function (Blueprint $table) use ($tickets) {
+            $table->id();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->index();
+            $table->string('event');
+            $table->json('properties')->nullable();
+            $table->timestamp('created_at')->nullable();
+            $table->index(['ticket_id', 'created_at']);
+        });
+
+        Schema::create($links, function (Blueprint $table) use ($tickets) {
+            $table->id();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->foreignId('linked_ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->string('type');
+            $table->foreignId('user_id')->nullable();
+            $table->timestamps();
+            $table->unique(['ticket_id', 'linked_ticket_id', 'type']);
+        });
+
+        Schema::create($approvals, function (Blueprint $table) use ($tickets) {
+            $table->id();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->foreignId('approver_id');
+            $table->foreignId('requested_by')->nullable();
+            $table->string('status')->default('pending');
+            $table->text('comment')->nullable();
+            $table->timestamp('decided_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create($watchers, function (Blueprint $table) use ($tickets) {
+            $table->id();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->foreignId('user_id');
+            $table->timestamps();
+            $table->unique(['ticket_id', 'user_id']);
+        });
+
+        Schema::create($workLogs, function (Blueprint $table) use ($tickets) {
+            $table->id();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->foreignId('user_id');
+            $table->unsignedInteger('minutes');
+            $table->text('description')->nullable();
+            $table->date('logged_on');
+            $table->timestamps();
+        });
+
+        Schema::create($itemTicket, function (Blueprint $table) use ($items, $tickets) {
+            $table->id();
+            $table->foreignId('configuration_item_id')->constrained($items)->cascadeOnDelete();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->timestamps();
+            $table->unique(['configuration_item_id', 'ticket_id'], 'configuration_item_ticket_unique');
+        });
+
+        Schema::create($attachments, function (Blueprint $table) use ($tickets, $messages) {
+            $table->id();
+            $table->foreignId('ticket_id')->constrained($tickets)->cascadeOnDelete();
+            $table->foreignId('message_id')->nullable()->constrained($messages)->nullOnDelete();
+            $table->foreignId('user_id')->nullable();
+            $table->string('disk');
+            $table->string('path');
+            $table->string('original_name');
+            $table->string('mime')->nullable();
+            $table->unsignedBigInteger('size')->default(0);
+            $table->timestamps();
+        });
+
+        $now = now();
+
+        DB::table($resolutionCodes)->insert([
+            ['name' => 'Solved', 'slug' => 'solved', 'description' => 'The cause was fixed.', 'is_visible' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Workaround', 'slug' => 'workaround', 'description' => 'Service was restored without a permanent fix.', 'is_visible' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Duplicate', 'slug' => 'duplicate', 'description' => 'The same issue is already tracked.', 'is_visible' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'User error', 'slug' => 'user-error', 'description' => 'The request was caused by incorrect use.', 'is_visible' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Not reproducible', 'slug' => 'not-reproducible', 'description' => 'The reported symptom could not be reproduced.', 'is_visible' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Won\'t fix', 'slug' => 'wont-fix', 'description' => 'The behavior will not be changed.', 'is_visible' => true, 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        DB::table($policies)->insert([
+            ['name' => 'Critical', 'priority' => 'critical', 'ticket_type' => null, 'response_minutes' => 15, 'resolution_minutes' => 240, 'use_business_hours' => false, 'is_default' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'High', 'priority' => 'high', 'ticket_type' => null, 'response_minutes' => 60, 'resolution_minutes' => 480, 'use_business_hours' => false, 'is_default' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Normal', 'priority' => 'normal', 'ticket_type' => null, 'response_minutes' => 240, 'resolution_minutes' => 1440, 'use_business_hours' => false, 'is_default' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Medium', 'priority' => 'medium', 'ticket_type' => null, 'response_minutes' => 240, 'resolution_minutes' => 1440, 'use_business_hours' => false, 'is_default' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Low', 'priority' => 'low', 'ticket_type' => null, 'response_minutes' => 480, 'resolution_minutes' => 2880, 'use_business_hours' => false, 'is_default' => false, 'created_at' => $now, 'updated_at' => $now],
+        ]);
+    }
+
+    protected function backfillTickets(string $tickets, string $sequences): void
+    {
+        $prefixes = config('laravel_ticket.numbering.prefixes', [
+            'incident' => 'INC',
+            'service_request' => 'REQ',
+            'problem' => 'PRB',
+            'change' => 'CHG',
+        ]);
+        $pad = (int) config('laravel_ticket.numbering.pad', 6);
+        $counters = [];
+
+        DB::table($tickets)->whereNull('uuid')->orderBy('id')->lazyById()->each(function ($ticket) use ($tickets) {
+            DB::table($tickets)->where('id', $ticket->id)->update([
+                'uuid' => (string) Str::uuid(),
+            ]);
+        });
+
+        DB::table($tickets)->whereNull('ticket_number')->orderBy('id')->lazyById()->each(function ($ticket) use ($tickets, $prefixes, $pad, &$counters) {
+            $prefix = $prefixes[$ticket->type] ?? 'INC';
+            $counters[$prefix] = ($counters[$prefix] ?? 0) + 1;
+
+            DB::table($tickets)->where('id', $ticket->id)->update([
+                'ticket_number' => sprintf('%s-%0'.$pad.'d', $prefix, $counters[$prefix]),
+            ]);
+        });
+
+        foreach ($counters as $prefix => $current) {
+            DB::table($sequences)->updateOrInsert(
+                ['prefix' => $prefix],
+                ['current' => $current, 'created_at' => now(), 'updated_at' => now()]
+            );
+        }
+    }
+
+    protected function widenMessage(string $table): void
+    {
+        $driver = Schema::getConnection()->getDriverName();
+        $grammar = Schema::getConnection()->getQueryGrammar();
+        $wrappedTable = $grammar->wrapTable($table);
+        $column = $grammar->wrap('message');
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE {$wrappedTable} MODIFY {$column} TEXT NULL");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("ALTER TABLE {$wrappedTable} ALTER COLUMN {$column} TYPE TEXT");
+        } elseif ($driver === 'sqlsrv') {
+            DB::statement("ALTER TABLE {$wrappedTable} ALTER COLUMN {$column} NVARCHAR(MAX) NULL");
+        }
+    }
+};

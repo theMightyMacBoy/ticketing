@@ -1,0 +1,16 @@
+<?php
+
+use Coderflex\LaravelTicket\Demo\DeskDemoSeeder;
+use Illuminate\Database\Migrations\Migration;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        if (! config('laravel_ticket.demo.seed')) {
+            return;
+        }
+
+        (new DeskDemoSeeder)->seedOrganization();
+    }
+};

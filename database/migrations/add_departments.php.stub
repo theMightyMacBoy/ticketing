@@ -1,0 +1,108 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        $departments = config('laravel_ticket.table_names.departments', 'departments');
+        $membership = config('laravel_ticket.table_names.department_user', 'department_user');
+        $types = config('laravel_ticket.table_names.ticket_types', 'ticket_types');
+        $calendars = config('laravel_ticket.table_names.business_calendars', 'business_calendars');
+        $groups = config('laravel_ticket.table_names.assignment_groups', 'assignment_groups');
+        $mailboxes = config('laravel_ticket.table_names.mailboxes', 'mailboxes');
+        $categories = config('laravel_ticket.table_names.categories', 'categories');
+        $services = config('laravel_ticket.table_names.services', 'services');
+        $policies = config('laravel_ticket.table_names.sla_policies', 'sla_policies');
+        $fields = config('laravel_ticket.table_names.custom_field_definitions', 'custom_field_definitions');
+        $tickets = config('laravel_ticket.table_names.tickets', 'tickets');
+        $approvals = config('laravel_ticket.table_names.approvals', 'approvals');
+
+        Schema::create($departments, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create($membership, function (Blueprint $table) use ($departments) {
+            $table->id();
+            $table->foreignId('department_id')->constrained($departments)->cascadeOnDelete();
+            $table->foreignId('user_id');
+            $table->boolean('is_agent')->default(false);
+            $table->timestamps();
+            $table->unique(['department_id', 'user_id']);
+        });
+
+        Schema::create($types, function (Blueprint $table) use ($departments) {
+            $table->id();
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+            $table->string('owner_key');
+            $table->string('name');
+            $table->string('slug');
+            $table->string('prefix', 12);
+            $table->boolean('requires_approval')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            $table->unique(['owner_key', 'slug']);
+        });
+
+        Schema::create($calendars, function (Blueprint $table) use ($departments) {
+            $table->id();
+            $table->foreignId('department_id')->unique()->constrained($departments)->cascadeOnDelete();
+            $table->string('name');
+            $table->string('timezone')->default('UTC');
+            $table->json('week');
+            $table->json('holidays')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::table($groups, function (Blueprint $table) use ($departments) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+        });
+
+        Schema::table($mailboxes, function (Blueprint $table) use ($departments) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+        });
+
+        Schema::table($categories, function (Blueprint $table) use ($departments) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+        });
+
+        Schema::table($services, function (Blueprint $table) use ($departments) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+        });
+
+        Schema::table($policies, function (Blueprint $table) use ($departments) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+        });
+
+        Schema::table($fields, function (Blueprint $table) use ($departments, $services) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+            $table->foreignId('service_id')->nullable()->constrained($services)->nullOnDelete();
+        });
+
+        Schema::table($tickets, function (Blueprint $table) use ($departments) {
+            $table->foreignId('department_id')->nullable()->constrained($departments)->nullOnDelete();
+        });
+
+        Schema::table($approvals, function (Blueprint $table) {
+            $table->unsignedInteger('position')->default(1);
+        });
+
+        $now = now();
+
+        DB::table($types)->insert([
+            ['department_id' => null, 'owner_key' => 'global', 'name' => 'Incident', 'slug' => 'incident', 'prefix' => 'INC', 'requires_approval' => false, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['department_id' => null, 'owner_key' => 'global', 'name' => 'Service request', 'slug' => 'service_request', 'prefix' => 'REQ', 'requires_approval' => false, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['department_id' => null, 'owner_key' => 'global', 'name' => 'Problem', 'slug' => 'problem', 'prefix' => 'PRB', 'requires_approval' => false, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['department_id' => null, 'owner_key' => 'global', 'name' => 'Change', 'slug' => 'change', 'prefix' => 'CHG', 'requires_approval' => true, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+        ]);
+    }
+};

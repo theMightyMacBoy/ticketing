@@ -133,6 +133,7 @@ it('can check if the ticket is open/closed/archived', function () {
     $this->assertTrue($ticket->isOpen());
     $this->assertTrue($closedTicket->isClosed());
     $this->assertTrue($archivedTicket->isArchived());
+    $this->assertFalse($archivedTicket->isClosed());
 });
 
 it('can check if the ticket is resolved or unresolved', function () {
@@ -266,8 +267,8 @@ it('can assign ticket to a user using user model', function () {
 
     $ticket->assignTo($agentUser);
 
-    expect($ticket->assigned_to)
-        ->toBe($agentUser);
+    expect($ticket->fresh()->assigned_to)
+        ->toBe($agentUser->id);
 });
 
 it('can assign ticket to a user using user id', function () {
@@ -276,7 +277,7 @@ it('can assign ticket to a user using user id', function () {
 
     $ticket->assignTo($agentUser->id);
 
-    expect($ticket->assigned_to)
+    expect($ticket->fresh()->assigned_to)
         ->toBe($agentUser->id);
 });
 

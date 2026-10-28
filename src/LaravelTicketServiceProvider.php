@@ -2,6 +2,23 @@
 
 namespace Coderflex\LaravelTicket;
 
+use Coderflex\LaravelTicket\Commands\EvaluateSlasCommand;
+use Coderflex\LaravelTicket\Commands\FetchMailCommand;
+use Coderflex\LaravelTicket\Commands\PurgeMailCommand;
+use Coderflex\LaravelTicket\Commands\SeedDemoCommand;
+use Coderflex\LaravelTicket\Events\ApprovalRequested;
+use Coderflex\LaravelTicket\Events\TicketAssigned;
+use Coderflex\LaravelTicket\Events\TicketOpened;
+use Coderflex\LaravelTicket\Events\TicketSlaBreached;
+use Coderflex\LaravelTicket\Mail\GraphMailboxReader;
+use Coderflex\LaravelTicket\Mail\MailboxReader;
+use Coderflex\LaravelTicket\Notifications\DeskNotifier;
+use Coderflex\LaravelTicket\Observers\MessageObserver;
+use Coderflex\LaravelTicket\Observers\TicketObserver;
+use Coderflex\LaravelTicket\Policies\TicketPolicy;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -17,6 +34,14 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-ticket')
             ->hasConfigFile('laravel_ticket')
+            ->hasViews('laravel-ticket')
+            ->hasRoutes('desk')
+            ->hasCommands(
+                EvaluateSlasCommand::class,
+                FetchMailCommand::class,
+                PurgeMailCommand::class,
+                SeedDemoCommand::class,
+            )
             ->hasMigrations(
                 'create_tickets_table',
                 'create_messages_table',
@@ -25,6 +50,53 @@ class LaravelTicketServiceProvider extends PackageServiceProvider
                 'create_category_ticket_table',
                 'create_label_ticket_table',
                 'add_assigned_to_column_into_tickets_table',
+                'install_enterprise_itsm',
+                'add_support_mailboxes',
+                'add_departments',
+                'add_launch_desk',
+                'seed_demo_desk',
+                'add_single_sign_on',
+                'add_team_managers',
+                'add_group_manager_block',
+                'add_rich_messages',
             );
+    }
+
+    public function packageRegistered(): void
+    {
+        $this->app->bind(MailboxReader::class, GraphMailboxReader::class);
+    }
+
+    public function packageBooted(): void
+    {
+        $ticket = config('laravel_ticket.models.ticket');
+        $message = config('laravel_ticket.models.message');
+
+        Gate::policy($ticket, TicketPolicy::class);
+
+        $ticket::observe(TicketObserver::class);
+        $message::observe(MessageObserver::class);
+
+        Event::listen(TicketOpened::class, [DeskNotifier::class, 'opened']);
+        Event::listen(TicketAssigned::class, [DeskNotifier::class, 'assigned']);
+        Event::listen(ApprovalRequested::class, [DeskNotifier::class, 'approval']);
+        Event::listen(TicketSlaBreached::class, [DeskNotifier::class, 'breached']);
+
+        $this->app->booted(function () {
+            if (! config('laravel_ticket.mail.schedule')) {
+                return;
+            }
+
+            $schedule = $this->app->make(Schedule::class);
+
+            $schedule->command('tickets:fetch-mail')
+                ->everyMinute()
+                ->withoutOverlapping();
+
+            $schedule->command('tickets:purge-mail')
+                ->dailyAt('00:00')
+                ->timezone('UTC')
+                ->withoutOverlapping();
+        });
     }
 }
